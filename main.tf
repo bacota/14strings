@@ -1,0 +1,402 @@
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+    archive = {
+      source  = "hashicorp/archive"
+      version = "~> 2.0"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.0"
+    }
+  }
+}
+
+provider "aws" {
+  region = var.aws_region
+}
+
+# Random suffix for unique resource names
+resource "random_id" "suffix" {
+  byte_length = 4
+}
+
+locals {
+  suffix = random_id.suffix.hex
+}
+
+# S3 Bucket for zip file uploads
+resource "aws_s3_bucket" "zip_uploads" {
+  bucket = "${var.project_name}-zip-uploads-${local.suffix}"
+}
+
+# S3 Bucket for extracted files
+resource "aws_s3_bucket" "extracted_files" {
+  bucket = "${var.project_name}-extracted-files-${local.suffix}"
+}
+
+# S3 Bucket Policy for zip uploads bucket
+resource "aws_s3_bucket_policy" "zip_uploads_policy" {
+  bucket = aws_s3_bucket.zip_uploads.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "DenyUnsignedUploads"
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "s3:PutObject"
+        Resource  = "${aws_s3_bucket.zip_uploads.arn}/*"
+        Condition = {
+          StringNotEquals = {
+            "s3:signatureversion" = "AWS4-HMAC-SHA256"
+          }
+        }
+      },
+      {
+        Sid    = "DenyLargeFiles"
+        Effect = "Deny"
+        Principal = "*"
+        Action = "s3:PutObject"
+        Resource = "${aws_s3_bucket.zip_uploads.arn}/*"
+        Condition = {
+          NumericGreaterThan = {
+            "s3:max-keys" = "268435456"
+          }
+        }
+      }
+    ]
+  })
+}
+
+# S3 Bucket versioning for zip uploads
+resource "aws_s3_bucket_versioning" "zip_uploads_versioning" {
+  bucket = aws_s3_bucket.zip_uploads.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+# S3 Bucket versioning for extracted files
+resource "aws_s3_bucket_versioning" "extracted_files_versioning" {
+  bucket = aws_s3_bucket.extracted_files.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+# Cognito User Pool
+resource "aws_cognito_user_pool" "main" {
+  name = "${var.project_name}-user-pool-${local.suffix}"
+
+  alias_attributes = ["email"]
+  auto_verified_attributes = ["email"]
+
+  password_policy {
+    minimum_length    = 8
+    require_lowercase = true
+    require_numbers   = true
+    require_symbols   = true
+    require_uppercase = true
+  }
+
+  schema {
+    attribute_data_type = "String"
+    name               = "email"
+    required           = true
+    mutable            = true
+  }
+}
+
+# Cognito User Pool Client
+resource "aws_cognito_user_pool_client" "main" {
+  name         = "${var.project_name}-client-${local.suffix}"
+  user_pool_id = aws_cognito_user_pool.main.id
+
+  generate_secret = false
+  
+  allowed_oauth_flows_user_pool_client = true
+  allowed_oauth_flows                 = ["code"]
+  allowed_oauth_scopes               = ["email", "openid", "profile"]
+  
+  callback_urls = [
+    "https://${var.web_bucket}.s3.${var.aws_region}.amazonaws.com/callback.html"
+  ]
+  
+  logout_urls = [
+    "https://${var.web_bucket}.s3.${var.aws_region}.amazonaws.com/index.html"
+  ]
+
+  supported_identity_providers = ["COGNITO"]
+
+  explicit_auth_flows = [
+    "ALLOW_USER_SRP_AUTH",
+    "ALLOW_REFRESH_TOKEN_AUTH"
+  ]
+
+  access_token_validity  = 60
+  id_token_validity     = 60
+  refresh_token_validity = 30
+
+  token_validity_units {
+    access_token  = "minutes"
+    id_token      = "minutes"
+    refresh_token = "days"
+  }
+}
+
+# Cognito User Pool Domain
+resource "aws_cognito_user_pool_domain" "main" {
+  domain       = "${var.project_name}-auth-${local.suffix}"
+  user_pool_id = aws_cognito_user_pool.main.id
+}
+
+# Cognito User Group - Admin
+resource "aws_cognito_user_group" "admin" {
+  name         = "admin"
+  user_pool_id = aws_cognito_user_pool.main.id
+  description  = "Administrator group"
+  precedence   = 1
+}
+
+# Cognito Admin User
+resource "aws_cognito_user" "admin" {
+  user_pool_id = aws_cognito_user_pool.main.id
+  username     = var.admin_username
+  
+  attributes = {
+    email           = var.admin_email
+    email_verified  = true
+  }
+
+  temporary_password = var.admin_temporary_password
+  message_action     = "SUPPRESS"
+}
+
+# Add admin user to admin group
+resource "aws_cognito_user_in_group" "admin_user" {
+  user_pool_id = aws_cognito_user_pool.main.id
+  group_name   = aws_cognito_user_group.admin.name
+  username     = aws_cognito_user.admin.username
+}
+
+# IAM Role for Lambda functions
+resource "aws_iam_role" "lambda_role" {
+  name = "${var.project_name}-lambda-role-${local.suffix}"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+# IAM Policy for Lambda functions
+resource "aws_iam_role_policy" "lambda_policy" {
+  name = "${var.project_name}-lambda-policy-${local.suffix}"
+  role = aws_iam_role.lambda_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+        Resource = "arn:aws:logs:*:*:*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject",
+          "s3:ListBucket"
+        ]
+        Resource = [
+          aws_s3_bucket.zip_uploads.arn,
+          "${aws_s3_bucket.zip_uploads.arn}/*",
+          aws_s3_bucket.extracted_files.arn,
+          "${aws_s3_bucket.extracted_files.arn}/*"
+        ]
+      }
+    ]
+  })
+}
+
+# API Gateway
+resource "aws_apigatewayv2_api" "main" {
+  name          = "${var.project_name}-api-${local.suffix}"
+  protocol_type = "HTTP"
+
+  cors_configuration {
+    allow_credentials = true
+    allow_headers     = ["*"]
+    allow_methods     = ["*"]
+    allow_origins     = ["*"]
+    max_age          = 300
+  }
+}
+
+# Cognito Authorizer for API Gateway
+resource "aws_apigatewayv2_authorizer" "cognito" {
+  api_id           = aws_apigatewayv2_api.main.id
+  authorizer_type  = "JWT"
+  identity_sources = ["$request.header.Authorization"]
+  name             = "${var.project_name}-cognito-authorizer-${local.suffix}"
+
+  jwt_configuration {
+    audience = [aws_cognito_user_pool_client.main.id]
+    issuer   = "https://cognito-idp.${var.aws_region}.amazonaws.com/${aws_cognito_user_pool.main.id}"
+  }
+}
+
+# Lambda function for generating presigned URLs and file management
+resource "aws_lambda_function" "file_manager" {
+  filename         = "file_manager.zip"
+  function_name    = "${var.project_name}-file-manager-${local.suffix}"
+  role            = aws_iam_role.lambda_role.arn
+  handler         = "lambda_function.lambda_handler"
+  source_code_hash = data.archive_file.file_manager_zip.output_base64sha256
+  runtime         = "python3.13"
+  timeout         = 30
+
+  environment {
+    variables = {
+      ZIP_BUCKET_NAME       = aws_s3_bucket.zip_uploads.bucket
+      EXTRACTED_BUCKET_NAME = aws_s3_bucket.extracted_files.bucket
+      ADMIN_GROUP_NAME      = aws_cognito_user_group.admin.name
+    }
+  }
+
+  depends_on = [data.archive_file.file_manager_zip]
+}
+
+# Lambda function for processing zip files
+resource "aws_lambda_function" "zip_processor" {
+  filename         = "zip_processor.zip"
+  function_name    = "${var.project_name}-zip-processor-${local.suffix}"
+  role            = aws_iam_role.lambda_role.arn
+  handler         = "lambda_function.lambda_handler"
+  source_code_hash = data.archive_file.zip_processor_zip.output_base64sha256
+  runtime         = "python3.13"
+  timeout         = 300
+
+  environment {
+    variables = {
+      EXTRACTED_BUCKET_NAME = aws_s3_bucket.extracted_files.bucket
+    }
+  }
+
+  depends_on = [data.archive_file.zip_processor_zip]
+}
+
+# S3 Event Notification for zip processor
+resource "aws_s3_bucket_notification" "zip_upload_notification" {
+  bucket = aws_s3_bucket.zip_uploads.id
+
+  lambda_function {
+    lambda_function_arn = aws_lambda_function.zip_processor.arn
+    events              = ["s3:ObjectCreated:*"]
+    filter_suffix       = ".zip"
+  }
+
+  depends_on = [aws_lambda_permission.s3_invoke_zip_processor]
+}
+
+# Lambda permission for S3 to invoke zip processor
+resource "aws_lambda_permission" "s3_invoke_zip_processor" {
+  statement_id  = "AllowExecutionFromS3Bucket"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.zip_processor.function_name
+  principal     = "s3.amazonaws.com"
+  source_arn    = aws_s3_bucket.zip_uploads.arn
+}
+
+# API Gateway Lambda Integration for file manager
+resource "aws_apigatewayv2_integration" "file_manager" {
+  api_id             = aws_apigatewayv2_api.main.id
+  integration_type   = "AWS_PROXY"
+  integration_uri    = aws_lambda_function.file_manager.invoke_arn
+  integration_method = "POST"
+}
+
+# API Gateway Route for presigned URL generation
+resource "aws_apigatewayv2_route" "get_presigned_url" {
+  api_id    = aws_apigatewayv2_api.main.id
+  route_key = "POST /presigned-url"
+  target    = "integrations/${aws_apigatewayv2_integration.file_manager.id}"
+  
+  authorization_type = "JWT"
+  authorizer_id     = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# API Gateway Route for folder deletion
+resource "aws_apigatewayv2_route" "delete_folder" {
+  api_id    = aws_apigatewayv2_api.main.id
+  route_key = "DELETE /folder/{folder_name}"
+  target    = "integrations/${aws_apigatewayv2_integration.file_manager.id}"
+  
+  authorization_type = "JWT"
+  authorizer_id     = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# API Gateway Route for file deletion
+resource "aws_apigatewayv2_route" "delete_file" {
+  api_id    = aws_apigatewayv2_api.main.id
+  route_key = "DELETE /file"
+  target    = "integrations/${aws_apigatewayv2_integration.file_manager.id}"
+  
+  authorization_type = "JWT"
+  authorizer_id     = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# API Gateway Stage
+resource "aws_apigatewayv2_stage" "main" {
+  api_id      = aws_apigatewayv2_api.main.id
+  name        = "prod"
+  auto_deploy = true
+
+  access_log_settings {
+    destination_arn = aws_cloudwatch_log_group.api_gateway.arn
+    format = jsonencode({
+      requestId      = "$context.requestId"
+      ip            = "$context.identity.sourceIp"
+      requestTime   = "$context.requestTime"
+      httpMethod    = "$context.httpMethod"
+      routeKey      = "$context.routeKey"
+      status        = "$context.status"
+      protocol      = "$context.protocol"
+      responseLength = "$context.responseLength"
+    })
+  }
+}
+
+# CloudWatch Log Group for API Gateway
+resource "aws_cloudwatch_log_group" "api_gateway" {
+  name              = "/aws/apigateway/${var.project_name}-${local.suffix}"
+  retention_in_days = 14
+}
+
+# Lambda permission for API Gateway
+resource "aws_lambda_permission" "api_gateway_invoke" {
+  statement_id  = "AllowExecutionFromAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.file_manager.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.main.execution_arn}/*/*"
+}

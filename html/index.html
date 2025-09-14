@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zip File Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 800px;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            font-size: 2.5rem;
+            font-weight: 300;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #7f8c8d;
+            font-size: 1.1rem;
+        }
+
+        .auth-section {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.6);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .upload-section {
+            display: none;
+            margin-bottom: 40px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+
+        .form-group input[type="text"],
+        .form-group input[type="file"] {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input[type="text"]:focus,
+        .form-group input[type="file"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input {
+            opacity: 0;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-input-display {
+            display: block;
+            padding: 15px;
+            border: 2px dashed #667eea;
+            border-radius: 10px;
+            text-align: center;
+            background: #f8f9fa;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .file-input-display:hover {
+            background: #e9ecef;
+            border-color: #764ba2;
+        }
+
+        .progress-container {
+            display: none;
+            margin-bottom: 20px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            text-align: center;
+            margin-top: 10px;
+            color: #6c757d;
+        }
+
+        .api-section {
+            display: none;
+            margin-bottom: 40px;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 15px;
+        }
+
+        .api-section h3 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+
+        .api-controls {
+            display: grid;
+            gap: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        }
+
+        .api-control {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #dee2e6;
+        }
+
+        .api-control h4 {
+            color: #495057;
+            margin-bottom: 15px;
+        }
+
+        .api-control input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
+        .api-control button {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .api-control button:hover {
+            background: #218838;
+        }
+
+        .api-control button.delete {
+            background: #dc3545;
+        }
+
+        .api-control button.delete:hover {
+            background: #c82333;
+        }
+
+        .message {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .message.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .message.info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+
+        .user-info {
+            background: #e3f2fd;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            display: none;
+        }
+
+        .user-info h3 {
+            color: #1976d2;
+            margin-bottom: 10px;
+        }
+
+        .user-info p {
+            color: #424242;
+            margin: 5px 0;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 20px;
+                padding: 30px 20px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .api-controls {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🗂️ Zip File Manager</h1>
+            <p>Upload and manage zip files with automated extraction</p>
+        </div>
+
+        <div class="auth-section" id="authSection">
+            <p style="margin-bottom: 20px; color: #6c757d;">Please sign in to access the file manager</p>
+            <a href="#" class="btn" id="loginBtn">Sign In with Cognito</a>
+        </div>
+
+        <div class="user-info" id="userInfo">
+            <h3>👤 User Information</h3>
+            <p><strong>Email:</strong> <span id="userEmail"></span></p>
+            <p><strong>Groups:</strong> <span id="userGroups"></span></p>
+            <button class="btn" id="logoutBtn" style="margin-top: 15px; background: #dc3545;">Sign Out</button>
+        </div>
+
+        <div class="message" id="messageDiv"></div>
+
+        <div class="upload-section" id="uploadSection">
+            <h3 style="color: #2c3e50; margin-bottom: 25px;">📤 Upload Zip File</h3>
+            <form id="uploadForm">
+                <div class="form-group">
+                    <label for="folderName">Target Folder Name:</label>
+                    <input type="text" id="folderName" name="folderName" required 
+                           placeholder="Enter folder name for extracted files" />
+                </div>
+                <div class="form-group">
+                    <label for="zipFile">Select Zip File (Max 256MB):</label>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="zipFile" name="zipFile" accept=".zip" required class="file-input" />
+                        <div class="file-input-display">
+                            <span id="fileDisplayText">Click here to select a zip file or drag and drop</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">Preparing upload...</div>
+                </div>
+                <button type="submit" class="btn" id="uploadBtn">Upload & Extract</button>
+            </form>
+        </div>
+
+        <div class="api-section" id="apiSection">
+            <h3>🛠️ API Management Tools</h3>
+            <div class="api-controls">
+                <div class="api-control">
+                    <h4>Delete Folder</h4>
+                    <input type="text" id="deleteFolderName" placeholder="Folder name to delete" />
+                    <button id="deleteFolderBtn" class="delete">Delete Folder</button>
+                </div>
+                <div class="api-control">
+                    <h4>Delete Specific Files</h4>
+                    <textarea id="deleteFilesList" placeholder="Enter file paths, one per line" 
+                              style="width: 100%; height: 80px; padding: 10px; border: 1px solid #ced4da; border-radius: 5px; margin-bottom: 10px;"></textarea>
+                    <button id="deleteFilesBtn" class="delete">Delete Files</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration (populated by Terraform)
+        const CONFIG = {
+            apiEndpoint: '${api_endpoint}/prod',
+            cognitoDomain: '${cognito_domain}',
+            clientId: '${client_id}',
+            redirectUri: '${redirect_uri}',
+            awsRegion: '${aws_region}'
+        };
+
+        // Global variables
+        let accessToken = null;
+        let userInfo = null;
+        let isAdmin = false;
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+            setupEventListeners();
+        });
+
+        function initializeApp() {
+            // Check if user is already authenticated
+            const token = localStorage.getItem('accessToken');
+            const user = localStorage.getItem('userInfo');
+            
+            if (token && user) {
+                accessToken = token;
+                userInfo = JSON.parse(user);
+                handleAuthentication();
+            }
+
+            // Set login URL
+            const loginUrl = `https://$${CONFIG.cognitoDomain}.auth.$${CONFIG.awsRegion}.amazoncognito.com/login?client_id=$${CONFIG.clientId}&response_type=code&scope=email+openid+profile&redirect_uri=$${encodeURIComponent(CONFIG.redirectUri)}`;
+            document.getElementById('loginBtn').href = loginUrl;
+        }
+
+        function setupEventListeners() {
+            // Upload form
+            document.getElementById('uploadForm').addEventListener('submit', handleUpload);
+            
+            // File input
+            const fileInput = document.getElementById('zipFile');
+            fileInput.addEventListener('change', handleFileSelect);
+            
+            // Drag and drop
+            const fileDisplay = document.querySelector('.file-input-display');
+            fileDisplay.addEventListener('dragover', handleDragOver);
+            fileDisplay.addEventListener('drop', handleDrop);
+            
+            // API controls
+            document.getElementById('deleteFolderBtn').addEventListener('click', deleteFolder);
+            document.getElementById('deleteFilesBtn').addEventListener('click', deleteFiles);
+            
+            // Logout
+            document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+        }
+
+        function handleAuthentication() {
+            document.getElementById('authSection').style.display = 'none';
+            document.getElementById('userInfo').style.display = 'block';
+            
+            // Display user info
+            document.getElementById('userEmail').textContent = userInfo.email || 'N/A';
+            document.getElementById('userGroups').textContent = userInfo.groups ? userInfo.groups.join(', ') : 'None';
+            
+            // Check if user is admin
+            isAdmin = userInfo.groups && userInfo.groups.includes('admin');
+            
+            if (isAdmin) {
+                document.getElementById('uploadSection').style.display = 'block';
+                document.getElementById('apiSection').style.display = 'block';
+            } else {
+                showMessage('You need admin privileges to use this application.', 'error');
+            }
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('userInfo');
+            accessToken = null;
+            userInfo = null;
+            isAdmin = false;
+            
+            document.getElementById('authSection').style.display = 'block';
+            document.getElementById('userInfo').style.display = 'none';
+            document.getElementById('uploadSection').style.display = 'none';
+            document.getElementById('apiSection').style.display = 'none';
+            
+            showMessage('Logged out successfully.', 'success');
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            updateFileDisplay(file);
+        }
+
+        function handleDragOver(event) {
+            event.preventDefault();
+            event.currentTarget.style.backgroundColor = '#e9ecef';
+        }
+
+        function handleDrop(event) {
+            event.preventDefault();
+            event.currentTarget.style.backgroundColor = '#f8f9fa';
+            
+            const files = event.dataTransfer.files;
+            if (files.length > 0) {
+                const file = files[0];
+                if (file.name.toLowerCase().endsWith('.zip')) {
+                    document.getElementById('zipFile').files = files;
+                    updateFileDisplay(file);
+                } else {
+                    showMessage('Please select a valid .zip file.', 'error');
+                }
+            }
+        }
+
+        function updateFileDisplay(file) {
+            const display = document.getElementById('fileDisplayText');
+            if (file) {
+                const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
+                display.textContent = `Selected: $${file.name} ($${sizeInMB} MB)`;
+                
+                if (file.size > 268435456) { // 256MB in bytes
+                    showMessage('File size exceeds 256MB limit. Please select a smaller file.', 'error');
+                    document.getElementById('zipFile').value = '';
+                    display.textContent = 'Click here to select a zip file or drag and drop';
+                }
+            } else {
+                display.textContent = 'Click here to select a zip file or drag and drop';
+            }
+        }
+
+        async function handleUpload(event) {
+            event.preventDefault();
+            
+            if (!isAdmin) {
+                showMessage('Admin privileges required.', 'error');
+                return;
+            }
+
+            const folderName = document.getElementById('folderName').value.trim();
+            const fileInput = document.getElementById('zipFile');
+            const file = fileInput.files[0];
+
+            if (!folderName || !file) {
+                showMessage('Please fill in all fields.', 'error
+
