@@ -19,7 +19,7 @@ variable "web_bucket" {
 variable "admin_username" {
   description = "Username for the admin user"
   type        = string
-  default     = "bruce.cota@vivi.com"
+  default     = "bruce"
 }
 
 variable "admin_email" {

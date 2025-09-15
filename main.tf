@@ -22,7 +22,7 @@ provider "aws" {
 
 # S3 Bucket for zip file uploads
 resource "aws_s3_bucket" "zip_uploads" {
-  bucket = "${var.project_name}-tabs"
+  bucket = "${var.project_name}-zip.14strings.com"
 }
 
 # S3 Bucket for extracted files
@@ -48,18 +48,6 @@ resource "aws_s3_bucket_policy" "zip_uploads_policy" {
             "s3:signatureversion" = "AWS4-HMAC-SHA256"
           }
         }
-      },
-      {
-        Sid    = "DenyLargeFiles"
-        Effect = "Deny"
-        Principal = "*"
-        Action = "s3:PutObject"
-        Resource = "${aws_s3_bucket.zip_uploads.arn}/*"
-        Condition = {
-          NumericGreaterThan = {
-            "s3:max-keys" = "268435456"
-          }
-        }
       }
     ]
   })
@@ -82,10 +70,10 @@ resource "aws_cognito_user_pool" "main" {
 
   password_policy {
     minimum_length    = 8
-    require_lowercase = true
-    require_numbers   = true
-    require_symbols   = true
-    require_uppercase = true
+    require_lowercase = false
+    require_numbers   = false
+    require_symbols   = false
+    require_uppercase = false
   }
 
   schema {
@@ -228,7 +216,6 @@ resource "aws_apigatewayv2_api" "main" {
   protocol_type = "HTTP"
 
   cors_configuration {
-    allow_credentials = true
     allow_headers     = ["*"]
     allow_methods     = ["*"]
     allow_origins     = ["*"]
