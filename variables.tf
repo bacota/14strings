@@ -7,7 +7,7 @@ variable "aws_region" {
 variable "project_name" {
   description = "Name of the project"
   type        = string
-  default     = "14strings-tabs"
+  default     = "14strings"
 }
 
 variable "web_bucket" {
