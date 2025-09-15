@@ -96,11 +96,13 @@ resource "aws_cognito_user_pool_client" "main" {
   allowed_oauth_scopes               = ["email", "openid", "profile"]
   
   callback_urls = [
-    "https://${var.web_bucket}.s3.${var.aws_region}.amazonaws.com/callback.html"
+    "https://${var.web_bucket}.s3.${var.aws_region}.amazonaws.com/callback.html",
+    "https://14strings.com/callback.html"
   ]
   
   logout_urls = [
-    "https://${var.web_bucket}.s3.${var.aws_region}.amazonaws.com/admin.html"
+    "https://${var.web_bucket}.s3.${var.aws_region}.amazonaws.com/admin.html",
+    "https://14strings.com/admin.html"    
   ]
 
   supported_identity_providers = ["COGNITO"]
