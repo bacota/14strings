@@ -3,7 +3,7 @@
 data "template_file" "web_html" {
   template = file("${path.module}/html/admin.html")
   vars = {
-    api_endpoint    = aws_apigatewayv2_api.main.api_endpoint
+    api_endpoint    = "${aws_apigatewayv2_api.main.api_endpoint}/prod"    
     cognito_domain  = aws_cognito_user_pool_domain.main.domain
     client_id       = aws_cognito_user_pool_client.main.id
     redirect_uri    = "https://14strings.com/callback.html"
@@ -21,7 +21,7 @@ resource "aws_s3_object" "admin_html" {
 data "template_file" "callback" {
   template = file("${path.module}/html/callback.html") 
   vars = {
-    api_endpoint    = aws_apigatewayv2_api.main.api_endpoint
+    api_endpoint    = "${aws_apigatewayv2_api.main.api_endpoint}/prod"
     cognito_domain  = aws_cognito_user_pool_domain.main.domain
     client_id       = aws_cognito_user_pool_client.main.id
     redirect_uri    = "https://14strings.com/callback.html"
