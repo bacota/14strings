@@ -100,7 +100,7 @@ resource "aws_cognito_user_pool_client" "main" {
   ]
   
   logout_urls = [
-    "https://${var.web_bucket}.s3.${var.aws_region}.amazonaws.com/index.html"
+    "https://${var.web_bucket}.s3.${var.aws_region}.amazonaws.com/admin.html"
   ]
 
   supported_identity_providers = ["COGNITO"]

@@ -1,7 +1,7 @@
 # Upload HTML files to existing web bucket
 
 data "template_file" "web_html" {
-  template = file("${path.module}/html/index.html")
+  template = file("${path.module}/html/admin.html")
   vars = {
     api_endpoint    = aws_apigatewayv2_api.main.api_endpoint
     cognito_domain  = aws_cognito_user_pool_domain.main.domain
@@ -11,7 +11,7 @@ data "template_file" "web_html" {
   }
 }
 
-resource "aws_s3_object" "index_html" {
+resource "aws_s3_object" "admin_html" {
   bucket       = var.web_bucket
   key          = "admin.html"
   content_type = "text/html"
