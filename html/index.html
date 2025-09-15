@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zip File Manager</title>
+    <title>14Strings! Tab Manager</title>
     <style>
         * {
             margin: 0;
@@ -302,7 +302,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🗂️ Zip File Manager</h1>
+            <h1>🗂️ 14Strings! Tab Manager</h1>
             <p>Upload and manage zip files with automated extraction</p>
         </div>
 
@@ -512,5 +512,212 @@
             const file = fileInput.files[0];
 
             if (!folderName || !file) {
-                showMessage('Please fill in all fields.', 'error
+                showMessage('Please fill in all fields.', 'error');
+                return;
+            }
 
+            if (file.size > 268435456) { // 256MB
+                showMessage('File size exceeds 256MB limit.', 'error');
+                return;
+            }
+
+            try {
+                showProgress(0, 'Getting upload URL...');
+                
+                // Get presigned URL
+                const presignedResponse = await fetch(`$${CONFIG.apiEndpoint}/presigned-url`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer $${accessToken}`
+                    },
+                    body: JSON.stringify({
+                        folder_name: folderName,
+                        filename: file.name
+                    })
+                });
+
+                if (!presignedResponse.ok) {
+                    const errorData = await presignedResponse.json();
+                    throw new Error(errorData.error || 'Failed to get upload URL');
+                }
+
+                const { presigned_post } = await presignedResponse.json();
+                
+                showProgress(25, 'Uploading file...');
+                
+                // Upload file using presigned POST
+                const formData = new FormData();
+                
+                // Add all the fields from presigned_post
+                Object.entries(presigned_post.fields).forEach(([key, value]) => {
+                    formData.append(key, value);
+                });
+                
+                // Add the file last
+                formData.append('file', file);
+                
+                // Upload with progress tracking
+                await uploadWithProgress(presigned_post.url, formData);
+                
+                showMessage('File uploaded successfully! Processing will begin automatically.', 'success');
+                
+                // Reset form
+                document.getElementById('uploadForm').reset();
+                updateFileDisplay(null);
+                
+            } catch (error) {
+                console.error('Upload error:', error);
+                showMessage(`Upload failed: $${error.message}`, 'error');
+            } finally {
+                hideProgress();
+            }
+        }
+
+        function uploadWithProgress(url, formData) {
+            return new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                
+                xhr.upload.addEventListener('progress', (event) => {
+                    if (event.lengthComputable) {
+                        const progress = Math.round((event.loaded / event.total) * 100);
+                        showProgress(25 + (progress * 0.75), `Uploading... $${progress}%`);
+                    }
+                });
+                
+                xhr.addEventListener('load', () => {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        resolve(xhr.response);
+                    } else {
+                        reject(new Error(`Upload failed with status $${xhr.status}`));
+                    }
+                });
+                
+                xhr.addEventListener('error', () => {
+                    reject(new Error('Upload failed due to network error'));
+                });
+                
+                xhr.open('POST', url);
+                xhr.send(formData);
+            });
+        }
+
+        async function deleteFolder() {
+            if (!isAdmin) {
+                showMessage('Admin privileges required.', 'error');
+                return;
+            }
+
+            const folderName = document.getElementById('deleteFolderName').value.trim();
+            if (!folderName) {
+                showMessage('Please enter a folder name.', 'error');
+                return;
+            }
+
+            if (!confirm(`Are you sure you want to delete the entire folder "$${folderName}"? This action cannot be undone.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`$${CONFIG.apiEndpoint}/folder/$${encodeURIComponent(folderName)}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer $${accessToken}`
+                    }
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showMessage(`Folder "$${folderName}" deleted successfully. $${result.deleted_files} files removed.`, 'success');
+                    document.getElementById('deleteFolderName').value = '';
+                } else {
+                    showMessage(`Failed to delete folder: $${result.error}`, 'error');
+                }
+            } catch (error) {
+                console.error('Delete folder error:', error);
+                showMessage(`Error deleting folder: $${error.message}`, 'error');
+            }
+        }
+
+        async function deleteFiles() {
+            if (!isAdmin) {
+                showMessage('Admin privileges required.', 'error');
+                return;
+            }
+
+            const filesList = document.getElementById('deleteFilesList').value.trim();
+            if (!filesList) {
+                showMessage('Please enter file paths to delete.', 'error');
+                return;
+            }
+
+            const files = filesList.split('\n').map(f => f.trim()).filter(f => f.length > 0);
+            if (files.length === 0) {
+                showMessage('No valid file paths provided.', 'error');
+                return;
+            }
+
+            if (!confirm(`Are you sure you want to delete $${files.length} file(s)? This action cannot be undone.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`$${CONFIG.apiEndpoint}/file`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer $${accessToken}`
+                    },
+                    body: JSON.stringify({
+                        files: files
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    let message = `$${result.deleted_files} file(s) deleted successfully.`;
+                    if (result.errors && result.errors.length > 0) {
+                        message += ` However, there were some errors: $${result.errors.join(', ')}`;
+                    }
+                    showMessage(message, result.errors ? 'info' : 'success');
+                    document.getElementById('deleteFilesList').value = '';
+                } else {
+                    showMessage(`Failed to delete files: $${result.error}`, 'error');
+                }
+            } catch (error) {
+                console.error('Delete files error:', error);
+                showMessage(`Error deleting files: $${error.message}`, 'error');
+            }
+        }
+
+        function showProgress(percent, text) {
+            const container = document.getElementById('progressContainer');
+            const fill = document.getElementById('progressFill');
+            const textEl = document.getElementById('progressText');
+            
+            container.style.display = 'block';
+            fill.style.width = `$${percent}%`;
+            textEl.textContent = text;
+        }
+
+        function hideProgress() {
+            const container = document.getElementById('progressContainer');
+            container.style.display = 'none';
+        }
+
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('messageDiv');
+            messageDiv.textContent = text;
+            messageDiv.className = `message $${type}`;
+            messageDiv.style.display = 'block';
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                messageDiv.style.display = 'none';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
