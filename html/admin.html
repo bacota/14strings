@@ -398,7 +398,7 @@
             }
 
             // Set login URL
-            const loginUrl = `https://$${CONFIG.cognitoDomain}.auth.$${CONFIG.awsRegion}.amazoncognito.com/login?client_id=$${CONFIG.clientId}&response_type=code&scope=email+openid+profile&redirect_uri=$${encodeURIComponent(CONFIG.redirectUri)}`;
+            const loginUrl = `https://${cognito_domain}.auth.${aws_region}.amazoncognito.com/login?client_id=${client_id}&response_type=code&scope=email+openid+profile&redirect_uri=$${encodeURIComponent(CONFIG.redirectUri)}`;
             document.getElementById('loginBtn').href = loginUrl;
         }
 
@@ -525,7 +525,7 @@
                 showProgress(0, 'Getting upload URL...');
                 
                 // Get presigned URL
-                const presignedResponse = await fetch(`$${CONFIG.apiEndpoint}/presigned-url`, {
+                const presignedResponse = await fetch(`${api_endpoint}/presigned-url`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -619,7 +619,7 @@
             }
 
             try {
-                const response = await fetch(`$${CONFIG.apiEndpoint}/folder/$${encodeURIComponent(folderName)}`, {
+                const response = await fetch(`${api_endpoint}/folder/$${encodeURIComponent(folderName)}`, {
                     method: 'DELETE',
                     headers: {
                         'Authorization': `Bearer $${accessToken}`
@@ -663,7 +663,7 @@
             }
 
             try {
-                const response = await fetch(`$${CONFIG.apiEndpoint}/file`, {
+                const response = await fetch(`${api_endpoint}/file`, {
                     method: 'DELETE',
                     headers: {
                         'Content-Type': 'application/json',
