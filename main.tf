@@ -19,23 +19,15 @@ provider "aws" {
   region = var.aws_region
 }
 
-# Random suffix for unique resource names
-resource "random_id" "suffix" {
-  byte_length = 4
-}
-
-locals {
-  suffix = random_id.suffix.hex
-}
 
 # S3 Bucket for zip file uploads
 resource "aws_s3_bucket" "zip_uploads" {
-  bucket = "${var.project_name}-zip-uploads-${local.suffix}"
+  bucket = "${var.project_name}-tabs"
 }
 
 # S3 Bucket for extracted files
 resource "aws_s3_bucket" "extracted_files" {
-  bucket = "${var.project_name}-extracted-files-${local.suffix}"
+  bucket = "tabs.14strings.com"
 }
 
 # S3 Bucket Policy for zip uploads bucket
@@ -73,14 +65,6 @@ resource "aws_s3_bucket_policy" "zip_uploads_policy" {
   })
 }
 
-# S3 Bucket versioning for zip uploads
-resource "aws_s3_bucket_versioning" "zip_uploads_versioning" {
-  bucket = aws_s3_bucket.zip_uploads.id
-  versioning_configuration {
-    status = "Enabled"
-  }
-}
-
 # S3 Bucket versioning for extracted files
 resource "aws_s3_bucket_versioning" "extracted_files_versioning" {
   bucket = aws_s3_bucket.extracted_files.id
@@ -91,7 +75,7 @@ resource "aws_s3_bucket_versioning" "extracted_files_versioning" {
 
 # Cognito User Pool
 resource "aws_cognito_user_pool" "main" {
-  name = "${var.project_name}-user-pool-${local.suffix}"
+  name = "${var.project_name}-user-pool"
 
   alias_attributes = ["email"]
   auto_verified_attributes = ["email"]
@@ -114,7 +98,7 @@ resource "aws_cognito_user_pool" "main" {
 
 # Cognito User Pool Client
 resource "aws_cognito_user_pool_client" "main" {
-  name         = "${var.project_name}-client-${local.suffix}"
+  name         = "${var.project_name}-client "
   user_pool_id = aws_cognito_user_pool.main.id
 
   generate_secret = false
@@ -151,7 +135,7 @@ resource "aws_cognito_user_pool_client" "main" {
 
 # Cognito User Pool Domain
 resource "aws_cognito_user_pool_domain" "main" {
-  domain       = "${var.project_name}-auth-${local.suffix}"
+  domain       = "${var.project_name}-auth"
   user_pool_id = aws_cognito_user_pool.main.id
 }
 
@@ -186,7 +170,7 @@ resource "aws_cognito_user_in_group" "admin_user" {
 
 # IAM Role for Lambda functions
 resource "aws_iam_role" "lambda_role" {
-  name = "${var.project_name}-lambda-role-${local.suffix}"
+  name = "${var.project_name}-lambda-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -204,7 +188,7 @@ resource "aws_iam_role" "lambda_role" {
 
 # IAM Policy for Lambda functions
 resource "aws_iam_role_policy" "lambda_policy" {
-  name = "${var.project_name}-lambda-policy-${local.suffix}"
+  name = "${var.project_name}-lambda-policy"
   role = aws_iam_role.lambda_role.id
 
   policy = jsonencode({
@@ -240,7 +224,7 @@ resource "aws_iam_role_policy" "lambda_policy" {
 
 # API Gateway
 resource "aws_apigatewayv2_api" "main" {
-  name          = "${var.project_name}-api-${local.suffix}"
+  name          = "${var.project_name}-api"
   protocol_type = "HTTP"
 
   cors_configuration {
@@ -257,7 +241,7 @@ resource "aws_apigatewayv2_authorizer" "cognito" {
   api_id           = aws_apigatewayv2_api.main.id
   authorizer_type  = "JWT"
   identity_sources = ["$request.header.Authorization"]
-  name             = "${var.project_name}-cognito-authorizer-${local.suffix}"
+  name             = "${var.project_name}-cognito-authorizer"
 
   jwt_configuration {
     audience = [aws_cognito_user_pool_client.main.id]
@@ -268,7 +252,7 @@ resource "aws_apigatewayv2_authorizer" "cognito" {
 # Lambda function for generating presigned URLs and file management
 resource "aws_lambda_function" "file_manager" {
   filename         = "file_manager.zip"
-  function_name    = "${var.project_name}-file-manager-${local.suffix}"
+  function_name    = "${var.project_name}-file-manager"
   role            = aws_iam_role.lambda_role.arn
   handler         = "lambda_function.lambda_handler"
   source_code_hash = data.archive_file.file_manager_zip.output_base64sha256
@@ -289,7 +273,7 @@ resource "aws_lambda_function" "file_manager" {
 # Lambda function for processing zip files
 resource "aws_lambda_function" "zip_processor" {
   filename         = "zip_processor.zip"
-  function_name    = "${var.project_name}-zip-processor-${local.suffix}"
+  function_name    = "${var.project_name}-zip-processor"
   role            = aws_iam_role.lambda_role.arn
   handler         = "lambda_function.lambda_handler"
   source_code_hash = data.archive_file.zip_processor_zip.output_base64sha256
@@ -388,7 +372,7 @@ resource "aws_apigatewayv2_stage" "main" {
 
 # CloudWatch Log Group for API Gateway
 resource "aws_cloudwatch_log_group" "api_gateway" {
-  name              = "/aws/apigateway/${var.project_name}-${local.suffix}"
+  name              = "/aws/apigateway/${var.project_name}"
   retention_in_days = 14
 }
 
