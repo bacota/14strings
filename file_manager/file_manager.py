@@ -1,7 +1,7 @@
 import json
 import boto3
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 import jwt
 from botocore.exceptions import ClientError
 import urllib.parse
@@ -20,7 +20,6 @@ def lambda_handler(event, context):
     try:
         # Extract route and method
         route_key = event.get('routeKey', '')
-        http_method = event.get('requestContext', {}).get('http', {}).get('method', '')
         
         # Verify admin group membership
         if not verify_admin_access(event):

@@ -157,8 +157,8 @@
                 
                 // Simulate token data (in production, this would come from Cognito)
                 const mockTokenData = {
-                    access_token: `mock_access_token_$${Date.now()}`,
-                    id_token: `mock_id_token_$${Date.now()}`,
+                    access_token: code,
+                    id_token: code,
                     expires_in: 3600
                 };
 
