@@ -1,7 +1,7 @@
 import json
 import boto3
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 import jwt
 from botocore.exceptions import ClientError
 import urllib.parse
@@ -20,6 +20,7 @@ def lambda_handler(event, context):
     try:
         # Extract route and method
         route_key = event.get('routeKey', '')
+        http_method = event.get('requestContext', {}).get('http', {}).get('method', '')
         
         # Verify admin group membership
         if not verify_admin_access(event):
@@ -166,6 +167,86 @@ def handle_presigned_url_request(event):
                 'Access-Control-Allow-Credentials': 'true'
             },
             'body': json.dumps({
+                'presigned_url': presigned_url,
+                'presigned_post': presigned_post,
+                's3_key': s3_key,
+                'expires_in': 3600
+            })
+        }
+        
+    except Exception as e:
+        print(f"Error generating presigned URL: {str(e)}")
+        return {
+            'statusCode': 500,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Credentials': 'true'
+            },
+            'body': json.dumps({'error': f'Failed to generate presigned URL: {str(e)}'})
+        }
+
+def handle_folder_deletion(event):
+    """
+    Delete an entire folder from the extracted files bucket
+    """
+    try:
+        # Extract folder name from path parameters
+        path_parameters = event.get('pathParameters', {})
+        folder_name = path_parameters.get('folder_name', '').strip()
+        
+        if not folder_name:
+            return {
+                'statusCode': 400,
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Credentials': 'true'
+                },
+                'body': json.dumps({'error': 'folder_name is required'})
+            }
+        
+        # URL decode the folder name
+        folder_name = urllib.parse.unquote(folder_name)
+        
+        # List all objects in the folder
+        folder_prefix = f"{folder_name}/"
+        paginator = s3_client.get_paginator('list_objects_v2')
+        
+        objects_to_delete = []
+        for page in paginator.paginate(Bucket=EXTRACTED_BUCKET_NAME, Prefix=folder_prefix):
+            for obj in page.get('Contents', []):
+                objects_to_delete.append({'Key': obj['Key']})
+        
+        if not objects_to_delete:
+            return {
+                'statusCode': 404,
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Credentials': 'true'
+                },
+                'body': json.dumps({'error': f'Folder "{folder_name}" not found'})
+            }
+        
+        # Delete objects in batches of 1000 (S3 limit)
+        deleted_count = 0
+        for i in range(0, len(objects_to_delete), 1000):
+            batch = objects_to_delete[i:i+1000]
+            response = s3_client.delete_objects(
+                Bucket=EXTRACTED_BUCKET_NAME,
+                Delete={'Objects': batch}
+            )
+            deleted_count += len(response.get('Deleted', []))
+        
+        return {
+            'statusCode': 200,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Credentials': 'true'
+            },
+            'body': json.dumps({
                 'message': f'Successfully deleted folder "{folder_name}"',
                 'deleted_files': deleted_count
             })
@@ -269,84 +350,4 @@ def handle_file_deletion(event):
                 'Access-Control-Allow-Credentials': 'true'
             },
             'body': json.dumps({'error': f'Failed to delete files: {str(e)}'})
-        } '*',
-                'Access-Control-Allow-Credentials': 'true'
-            },
-            'body': json.dumps({
-                'presigned_url': presigned_url,
-                'presigned_post': presigned_post,
-                's3_key': s3_key,
-                'expires_in': 3600
-            })
         }
-        
-    except Exception as e:
-        print(f"Error generating presigned URL: {str(e)}")
-        return {
-            'statusCode': 500,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Credentials': 'true'
-            },
-            'body': json.dumps({'error': f'Failed to generate presigned URL: {str(e)}'})
-        }
-
-def handle_folder_deletion(event):
-    """
-    Delete an entire folder from the extracted files bucket
-    """
-    try:
-        # Extract folder name from path parameters
-        path_parameters = event.get('pathParameters', {})
-        folder_name = path_parameters.get('folder_name', '').strip()
-        
-        if not folder_name:
-            return {
-                'statusCode': 400,
-                'headers': {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Credentials': 'true'
-                },
-                'body': json.dumps({'error': 'folder_name is required'})
-            }
-        
-        # URL decode the folder name
-        folder_name = urllib.parse.unquote(folder_name)
-        
-        # List all objects in the folder
-        folder_prefix = f"{folder_name}/"
-        paginator = s3_client.get_paginator('list_objects_v2')
-        
-        objects_to_delete = []
-        for page in paginator.paginate(Bucket=EXTRACTED_BUCKET_NAME, Prefix=folder_prefix):
-            for obj in page.get('Contents', []):
-                objects_to_delete.append({'Key': obj['Key']})
-        
-        if not objects_to_delete:
-            return {
-                'statusCode': 404,
-                'headers': {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Credentials': 'true'
-                },
-                'body': json.dumps({'error': f'Folder "{folder_name}" not found'})
-            }
-        
-        # Delete objects in batches of 1000 (S3 limit)
-        deleted_count = 0
-        for i in range(0, len(objects_to_delete), 1000):
-            batch = objects_to_delete[i:i+1000]
-            response = s3_client.delete_objects(
-                Bucket=EXTRACTED_BUCKET_NAME,
-                Delete={'Objects': batch}
-            )
-            deleted_count += len(response.get('Deleted', []))
-        
-        return {
-            'statusCode': 200,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin':

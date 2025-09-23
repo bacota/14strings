@@ -4,8 +4,9 @@
 resource "aws_lambda_function" "file_manager" {
   filename         = "file_manager.zip"
   function_name    = "${var.project_name}-file-manager"
+  source_code_hash = filebase64sha256("file_manager.zip")  
   role            = aws_iam_role.lambda_role.arn
-  handler         = "zip_processor.lambda_handler"
+  handler         = "file_manager.lambda_handler"
   runtime         = "python3.13"
   timeout         = 30
 
@@ -23,6 +24,7 @@ resource "aws_lambda_function" "file_manager" {
 resource "aws_lambda_function" "zip_processor" {
   filename         = "zip_processor.zip"
   function_name    = "${var.project_name}-zip-processor"
+  source_code_hash = filebase64sha256("zip_processor.zip")
   role            = aws_iam_role.lambda_role.arn
   handler         = "zip_processor.lambda_handler"
   runtime         = "python3.13"
