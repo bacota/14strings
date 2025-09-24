@@ -120,15 +120,23 @@
                 updateStatus('Exchanging authorization code for tokens...');
 
                 const tokenResponse = await exchangeCodeForTokens(code)
-                console.log(tokenResponse)
                 localStorage.setItem('accessToken', tokenResponse.access_token);
                 localStorage.setItem('idToken', tokenResponse.id_token);
-                localStorage.setItem('refreshToken', tokenResponse.reresh_token);
+        localStorage.setItem('refreshToken', tokenResponse.reresh_token);
 
-                // Redirect to main application
-                setTimeout(() => {
+        const id = parseJWT(tokenResponse.id_token)
+        const userInfo = {
+        email: id.email,
+        groups: id['cognito:groups'],
+        sub: id.sub,
+        username: id["cognito:username"]
+        }
+       localStorage.setItem('userInfo', JSON.stringify(userInfo));  
+
+        // Redirect to main application
+        setTimeout(() => {
                     window.location.href = 'admin.html';
-                }, 1500);
+        }, 1500);
 
             } catch (error) {
                 console.error('Authentication error:', error);
@@ -136,48 +144,6 @@
             }
         }
 
-        async function handleTokenExchange(code) {
-            try {
-                // This is a simplified approach. In production, you might want to use a backend service
-                // to handle the token exchange more securely
-                
-                updateStatus('Validating authentication...');
-
-                // For now, we'll simulate successful authentication
-                // In a real implementation, you'd exchange the code for tokens via Cognito
-                
-                // Simulate token data (in production, this would come from Cognito)
-                const mockTokenData = {
-                    access_token: code,
-                    id_token: code,
-                    expires_in: 3600
-                };
-
-                // Parse ID token to get user info (this is mocked for demo)
-                const mockUserInfo = {
-                    email: 'admin@example.com',
-                    groups: ['admin'],
-                    sub: 'mock_user_id'
-                };
-
-                // Store tokens and user info
-                localStorage.setItem('accessToken', mockTokenData.access_token);
-                localStorage.setItem('idToken', mockTokenData.id_token);
-                localStorage.setItem('userInfo', JSON.stringify(mockUserInfo));
-
-                updateStatus('Authentication successful! Redirecting...');
-
-                // Redirect to main application
-                setTimeout(() => {
-                    window.location.href = 'admin.html';
-                }, 1500);
-
-            } catch (error) {
-                throw new Error(`Token exchange failed: $${error.message}`);
-            }
-        }
-
-        // Alternative approach using Cognito's token endpoint
         async function exchangeCodeForTokens(code) {
             const params = new URLSearchParams();
             params.append('grant_type', 'authorization_code');
