@@ -77,7 +77,9 @@ def verify_admin_access(event):
         token = auth_header[7:]  # Remove 'Bearer ' prefix
         
         # Decode without verification (API Gateway already verified)
-        decoded_token = jwt.decode(token, options={"verify_signature": False})
+        print(f"Encoded token is {token}")
+        decoded_token = jwt.decode(token)
+        print(f"Token is {decoded_token}")
         
         # Check if user belongs to admin group
         cognito_groups = decoded_token.get('cognito:groups', [])

@@ -119,25 +119,16 @@
 
                 updateStatus('Exchanging authorization code for tokens...');
 
-                // Exchange authorization code for tokens
-                const tokenResponse = await fetch('https://cognito-idp.us-east-1.amazonaws.com/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-amz-json-1.1',
-                        'X-Amz-Target': 'AWSCognitoIdentityProviderService.InitiateAuth'
-                    },
-                    body: JSON.stringify({
-                        AuthFlow: 'AUTHORIZATION_CODE',
-                        ClientId: '${client_id}',
-                        AuthParameters: {
-                            code: code
-                        }
-                    })
-                });
+                const tokenResponse = await exchangeCodeForTokens(code)
+                console.log(tokenResponse)
+                localStorage.setItem('accessToken', tokenResponse.access_token);
+                localStorage.setItem('idToken', tokenResponse.id_token);
+                localStorage.setItem('refreshToken', tokenResponse.reresh_token);
 
-                // For simplicity, we'll use a different approach
-                // Since we're dealing with hosted UI, we need to handle token exchange differently
-                await handleTokenExchange(code);
+                // Redirect to main application
+                setTimeout(() => {
+                    window.location.href = 'admin.html';
+                }, 1500);
 
             } catch (error) {
                 console.error('Authentication error:', error);

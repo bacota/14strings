@@ -390,12 +390,14 @@
             // Check if user is already authenticated
             const token = localStorage.getItem('accessToken');
             const user = localStorage.getItem('userInfo');
-            
+        accessToken = token
+           /*
             if (token && user) {
                 accessToken = token;
-                userInfo = JSON.parse(user);
-                handleAuthentication();
-            }
+               userInfo = JSON.parse(user);
+               handleAuthentication();
+        }
+        */
 
             // Set login URL
             const loginUrl = `https://${cognito_domain}.auth.${aws_region}.amazoncognito.com/login?client_id=${client_id}&response_type=code&scope=email+openid+profile&redirect_uri=$${encodeURIComponent(CONFIG.redirectUri)}`;
@@ -444,9 +446,8 @@
 
         function handleLogout() {
             localStorage.removeItem('accessToken');
-            localStorage.removeItem('userInfo');
+            localStorage.removeItem('refreshToken');
             accessToken = null;
-            userInfo = null;
             isAdmin = false;
             
             document.getElementById('authSection').style.display = 'block';
