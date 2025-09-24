@@ -19,8 +19,10 @@ def lambda_handler(event, context):
     """
     try:
         # Extract route and method
-        route_key = event.get('routeKey', '')
-        http_method = event.get('requestContext', {}).get('http', {}).get('method', '')
+        resource = event.get("resource")
+        http_method = event.get("httpMethod")
+        route_key = http_method+resource
+        print(f"EVENT IS {event}")
         
         # Verify admin group membership
         if not verify_admin_access(event):
@@ -33,13 +35,13 @@ def lambda_handler(event, context):
                 },
                 'body': json.dumps({'error': 'Access denied. Admin group membership required.'})
             }
-        
+        print(f"ROUTE KEY IS {route_key}")
         # Route to appropriate handler
-        if route_key == 'POST /presigned-url':
+        if route_key == 'POST/presigned-url':
             return handle_presigned_url_request(event)
-        elif route_key.startswith('DELETE /folder/'):
+        elif route_key.startswith('DELETE/folder/'):
             return handle_folder_deletion(event)
-        elif route_key == 'DELETE /file':
+        elif route_key == 'DELETE/file':
             return handle_file_deletion(event)
         else:
             return {
@@ -77,9 +79,7 @@ def verify_admin_access(event):
         token = auth_header[7:]  # Remove 'Bearer ' prefix
         
         # Decode without verification (API Gateway already verified)
-        print(f"Encoded token is {token}")
-        decoded_token = jwt.decode(token)
-        print(f"Token is {decoded_token}")
+        decoded_token = jwt.decode(token, algorithms=["RS256"], options={"verify_signature":False})
         
         # Check if user belongs to admin group
         cognito_groups = decoded_token.get('cognito:groups', [])

@@ -376,6 +376,8 @@
         };
 
         // Global variables
+        let token = null;
+        let idToken = null;
         let accessToken = null;
         let userInfo = null;
         let isAdmin = false;
@@ -388,11 +390,12 @@
 
         function initializeApp() {
             // Check if user is already authenticated
-            const token = localStorage.getItem('accessToken');
-            const user = localStorage.getItem('userInfo');
+            accessToken = localStorage.getItem('accessToken');
+            idToken = localStorage.getItem('idToken');
+            user = localStorage.getItem('userInfo');
+            token = accessToken
 
             if (token && user) {
-                accessToken = token;
                userInfo = JSON.parse(user);
                handleAuthentication();
             }
@@ -528,7 +531,7 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer $${accessToken}`
+                        'Authorization': `Bearer $${idToken}`
                     },
                     body: JSON.stringify({
                         folder_name: folderName,
