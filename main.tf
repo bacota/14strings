@@ -38,17 +38,17 @@ resource "aws_s3_bucket_policy" "zip_uploads_policy" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid       = "DenyUnsignedUploads"
-        Effect    = "Deny"
-        Principal = "*"
-        Action    = "s3:PutObject"
-        Resource  = "${aws_s3_bucket.zip_uploads.arn}/*"
-        Condition = {
-          StringNotEquals = {
-            "s3:signatureversion" = "AWS4-HMAC-SHA256"
-          }
+        Sid       = "AllowUploads"        
+            "Effect": "Allow",
+            "Principal": {
+              "AWS": "${aws_iam_role.lambda_role.arn}"
+            },
+            "Action": [
+                "s3:PutObject",
+                "s3:PutObjectAcl"
+            ],
+        Resource  = "${aws_s3_bucket.zip_uploads.arn}/*"        
         }
-      }
     ]
   })
 }

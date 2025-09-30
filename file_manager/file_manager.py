@@ -153,7 +153,6 @@ def handle_presigned_url_request(event):
             },
             Conditions=[
                 ['content-length-range', 1, 268435456],  # 1 byte to 256MB
-                ['starts-with', '$Content-Type', 'application/'],
                 {'x-amz-meta-target-folder': folder_name},
                 {'x-amz-meta-original-filename': filename},
                 {'x-amz-meta-upload-timestamp': timestamp}
