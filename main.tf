@@ -30,7 +30,7 @@ resource "aws_s3_bucket" "extracted_files" {
   bucket = "tabs.14strings.com"
 }
 
-# S3 Bucket Policy for zip uploads bucket
+
 resource "aws_s3_bucket_policy" "zip_uploads_policy" {
   bucket = aws_s3_bucket.zip_uploads.id
 
@@ -73,6 +73,31 @@ resource "aws_s3_bucket_policy" "extracted_Files_policy" {
         }
     ]
   })
+}
+
+
+resource "aws_s3_bucket_cors_configuration" "zip_uploads_cors" {
+  bucket = aws_s3_bucket.zip_uploads.id
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["GET", "PUT", "POST", "DELETE", "HEAD"]
+    allowed_origins = ["*"]
+    expose_headers  = ["ETag"]
+    max_age_seconds = 3000
+    id              = "zip_uploads_cors_rule"
+  }
+}
+
+resource "aws_s3_bucket_cors_configuration" "extracted_files_cors" {
+  bucket = aws_s3_bucket.extracted_files.id
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["GET", "PUT", "POST", "DELETE", "HEAD"]
+    allowed_origins = ["*"]
+    expose_headers  = ["ETag"]
+    max_age_seconds = 3000
+    id              = "extracted_files_cors_rule"
+  }
 }
 
 # S3 Bucket versioning for extracted files
