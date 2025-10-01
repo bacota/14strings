@@ -329,7 +329,7 @@
                            placeholder="Enter folder name for extracted files" />
                 </div>
                 <div class="form-group">
-                    <label for="zipFile">Select Zip File (Max 256MB):</label>
+                    <label for="zipFile">Select  File (Max 256MB):</label>
                     <div class="file-input-wrapper">
                         <input type="file" id="zipFile" name="zipFile" accept=".zip" required class="file-input" />
                         <div class="file-input-display">
@@ -346,6 +346,35 @@
                 <button type="submit" class="btn" id="uploadBtn">Upload & Extract</button>
             </form>
         </div>
+
+
+        <div class="upload-section" id="uploadFileSection">
+            <h3 style="color: #2c3e50; margin-bottom: 25px;">📤 Upload Individual File</h3>
+            <form id="uploadFileForm">
+                <div class="form-group">
+                    <label for="fileFolderName">Target Folder Name:</label>
+                    <input type="text" id="fileFolderName" name="fileFolderName" required 
+                           placeholder="Enter folder name" />
+                </div>
+                <div class="form-group">
+                    <label for="file">Select  File (Max 10MB):</label>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="file" name="file" required class="file-input" />
+                        <div class="file-input-display">
+                            <span id="fileText">Click here to select a file or drag and drop</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="progress-container" id="fileProgressContainer">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="fileProgressFill"></div>
+                    </div>
+                    <div class="progress-text" id="fileProgressText">Preparing upload...</div>
+                </div>
+                <button type="submit" class="btn" id="fileUploadBtn">Upload File</button>
+            </form>
+        </div>
+        
 
         <div class="api-section" id="apiSection">
             <h3>🛠️ API Management Tools</h3>
@@ -408,15 +437,23 @@
         function setupEventListeners() {
             // Upload form
             document.getElementById('uploadForm').addEventListener('submit', handleUpload);
+            document.getElementById('uploadFileForm').addEventListener('submit', handleFileUpload);            
             
             // File input
-            const fileInput = document.getElementById('zipFile');
-            fileInput.addEventListener('change', handleFileSelect);
-            
+            const zipInput = document.getElementById('zipFile');
+            zipInput.addEventListener('change', handleZipFileSelect);
+
             // Drag and drop
-            const fileDisplay = document.querySelector('.file-input-display');
+            const zipFileDisplay = document.getElementById('fileDisplayText');
+            zipFileDisplay.addEventListener('dragover', handleDragOver);
+            zipFileDisplay.addEventListener('drop', handleZipDrop);
+
+            const fileDisplay = document.getElementById('fileText');
             fileDisplay.addEventListener('dragover', handleDragOver);
-            fileDisplay.addEventListener('drop', handleDrop);
+            fileDisplay.addEventListener('drop', handleFileDrop);
+
+            const fileInput = document.getElementById('file');
+            fileInput.addEventListener('change', handleNonZipFileSelect);
             
             // API controls
             document.getElementById('deleteFolderBtn').addEventListener('click', deleteFolder);
@@ -439,6 +476,7 @@
             
             if (isAdmin) {
                 document.getElementById('uploadSection').style.display = 'block';
+                document.getElementById('uploadFileSection').style.display = 'block';                
                 document.getElementById('apiSection').style.display = 'block';
             } else {
                 showMessage('You need admin privileges to use this application.', 'error');
@@ -454,22 +492,30 @@
             document.getElementById('authSection').style.display = 'block';
             document.getElementById('userInfo').style.display = 'none';
             document.getElementById('uploadSection').style.display = 'none';
+            document.getElementById('uploadFileSection').style.display = 'none';            
             document.getElementById('apiSection').style.display = 'none';
             
             showMessage('Logged out successfully.', 'success');
         }
 
-        function handleFileSelect(event) {
+        function handleZipFileSelect(event) {
             const file = event.target.files[0];
             updateFileDisplay(file);
         }
+
+
+        function handleNonZipFileSelect(event) {
+            const file = event.target.files[0];
+            updateNonZipFileDisplay(file);
+        }
+      
 
         function handleDragOver(event) {
             event.preventDefault();
             event.currentTarget.style.backgroundColor = '#e9ecef';
         }
 
-        function handleDrop(event) {
+        function handleZipDrop(event) {
             event.preventDefault();
             event.currentTarget.style.backgroundColor = '#f8f9fa';
             
@@ -567,6 +613,116 @@
                 // Reset form
                 document.getElementById('uploadForm').reset();
                 updateFileDisplay(null);
+                
+            } catch (error) {
+                console.error('Upload error:', error);
+                showMessage(`Upload failed: $${error.message}`, 'error');
+            } finally {
+                hideProgress();
+            }
+        }
+
+
+        function handleFileDrop(event) {
+            console.log("handling file drop")
+            event.preventDefault();
+            event.currentTarget.style.backgroundColor = '#f8f9fa';
+
+            const files = event.dataTransfer.files;
+            console.log("Files length is " + files.length)
+            if (files.length > 0) {
+                const file = files[0];
+                if (!file.name.toLowerCase().endsWith('.zip')) {
+                    document.getElementById('file').files = files;
+                    updateNonZipFileDisplay(file);
+                } else {
+                    showMessage('Please do not select a zip file.', 'error');
+                }
+            }
+        }
+
+        function updateNonZipFileDisplay(file) {
+            const display = document.getElementById('fileText');
+            if (file) {
+                const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
+                display.textContent = `Selected: $${file.name} ($${sizeInMB} MB)`;
+                
+                if (file.size > 10*1024*1024) { 
+                    showMessage('File size exceeds 10MB limit. Please select a smaller file.', 'error');
+                    document.getElementById('file').value = '';
+                    display.textContent = 'Click here to select a file or drag and drop';
+                }
+            } else {
+                display.textContent = 'Click here to select a file or drag and drop';
+            }
+        }
+      
+        async function handleFileUpload(event) {
+            event.preventDefault();
+            
+            if (!isAdmin) {
+                showMessage('Admin privileges required.', 'error');
+                return;
+            }
+
+            const folderName = document.getElementById('fileFolderName').value.trim();
+            const fileInput = document.getElementById('file');
+            const file = fileInput.files[0];
+
+            if (!folderName || !file) {
+                showMessage('Please fill in all fields.', 'error');
+                return;
+            }
+
+            if (file.size >10737418240) { // 10MB
+                showMessage('File size exceeds 10MB limit.', 'error');
+                return;
+            }
+
+            try {
+                showProgress(0, 'Getting upload URL...');
+                
+                // Get presigned URL
+                const presignedResponse = await fetch(`${api_endpoint}/presigned-url`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer $${idToken}`
+                    },
+                    body: JSON.stringify({
+                        folder_name: folderName,
+                        filename: file.name
+                    })
+                });
+
+                if (!presignedResponse.ok) {
+                    const errorData = await presignedResponse.json();
+                    throw new Error(errorData.error || 'Failed to get upload URL');
+                }
+
+                const { presigned_post } = await presignedResponse.json();
+                
+                showProgress(25, 'Uploading file...');
+                
+                // Upload file using presigned POST
+                const formData = new FormData();
+                
+                // Add all the fields from presigned_post
+                Object.entries(presigned_post.fields).forEach(([key, value]) => {
+                    formData.append(key, value);
+                });
+                
+                // Add the file last
+                formData.append('file', file);
+                
+                // Upload with progress tracking
+                await uploadWithProgress(presigned_post.url, formData);
+                
+                showMessage('File uploaded successfully!', 'success');
+                
+                // Reset form
+                document.getElementById('uploadForm').reset();
+                updateNonZipFileDisplay(null);
                 
             } catch (error) {
                 console.error('Upload error:', error);

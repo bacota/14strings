@@ -109,33 +109,27 @@ def handle_presigned_url_request(event):
                 'body': json.dumps({'error': 'folder_name and filename are required'})
             }
         
-        # Validate file extension
-        if not filename.lower().endswith('.zip'):
-            return {
-                'statusCode': 400,
-                'headers': {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Credentials': 'true'
-                },
-                'body': json.dumps({'error': 'Only .zip files are allowed'})
-            }
-        
-        # Generate S3 key with timestamp
         timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-        s3_key = f"uploads/{timestamp}_{filename}"
+        if filename.lower().endswith('.zip'):
+            bucket_name = ZIP_BUCKET_NAME
+            s3_key = f"uploads/{timestamp}_{filename}"
+        else:
+            bucket_name = EXTRACTED_BUCKET_NAME
+            s3_key = f"{folder_name}/{filename}"
+
+        metadata = {
+            'target-folder': folder_name,
+            'original-filename': filename,
+            'upload-timestamp': timestamp
+        }
         
         # Generate presigned URL with conditions
         presigned_url = s3_client.generate_presigned_url(
             'put_object',
             Params={
-                'Bucket': ZIP_BUCKET_NAME,
+                'Bucket': bucket_name,
                 'Key': s3_key,
-                'Metadata': {
-                    'target-folder': folder_name,
-                    'original-filename': filename,
-                    'upload-timestamp': timestamp
-                }
+                'Metadata': metadata
             },
             ExpiresIn=3600,  # 1 hour
             HttpMethod='PUT'
@@ -143,7 +137,7 @@ def handle_presigned_url_request(event):
         
         # Generate presigned POST for better error handling
         presigned_post = s3_client.generate_presigned_post(
-            Bucket=ZIP_BUCKET_NAME,
+            Bucket=bucket_name,
             Key=s3_key,
             Fields={
                 'x-amz-meta-target-folder': folder_name,
