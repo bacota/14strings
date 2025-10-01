@@ -8,6 +8,7 @@ from botocore.exceptions import ClientError
 
 # Environment variables
 EXTRACTED_BUCKET_NAME = os.environ['EXTRACTED_BUCKET_NAME']
+PREFIX = os.environ['PREFIX']
 
 s3_client = boto3.client('s3')
 
@@ -101,7 +102,7 @@ def extract_zip_file(zip_content, target_folder, original_filename):
                 s3_key = f"{target_folder}/{file_path}"
                 
                 # Normalize path separators for consistency
-                s3_key = s3_key.replace('\\', '/')
+                s3_key = PREFIX + "/" + s3_key.replace('\\', '/')
                 
                 try:
                     # Extract file content

@@ -34,6 +34,7 @@ resource "aws_lambda_function" "zip_processor" {
   environment {
     variables = {
       EXTRACTED_BUCKET_NAME = aws_s3_bucket.extracted_files.bucket
+      PREFIX = "tabs"
     }
   }
 }

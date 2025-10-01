@@ -128,12 +128,14 @@ resource "aws_s3_bucket_cors_configuration" "extracted_files_cors" {
 }
 
 # S3 Bucket versioning for extracted files
+/*
 resource "aws_s3_bucket_versioning" "extracted_files_versioning" {
   bucket = aws_s3_bucket.extracted_files.id
   versioning_configuration {
     status = "Enabled"
   }
 }
+*/
 
 # Cognito User Pool
 resource "aws_cognito_user_pool" "main" {
