@@ -22,7 +22,7 @@ def lambda_handler(event, context):
         resource = event.get("resource")
         http_method = event.get("httpMethod")
         route_key = http_method+resource
-        print(f"EVENT IS {event}")
+        # print(f"EVENT IS {event}")
         
         # Verify admin group membership
         if not verify_admin_access(event):
@@ -35,7 +35,6 @@ def lambda_handler(event, context):
                 },
                 'body': json.dumps({'error': 'Access denied. Admin group membership required.'})
             }
-        print(f"ROUTE KEY IS {route_key}")
         # Route to appropriate handler
         if route_key == 'POST/presigned-url':
             return handle_presigned_url_request(event)
