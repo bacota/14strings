@@ -81,7 +81,7 @@ resource "aws_s3_bucket_cors_configuration" "zip_uploads_cors" {
   cors_rule {
     allowed_headers = ["*"]
     allowed_methods = ["GET", "PUT", "POST", "DELETE", "HEAD"]
-    allowed_origins = ["*"]
+    allowed_origins = ["https://14strings.com"]    
     expose_headers  = ["ETag"]
     max_age_seconds = 3000
     id              = "zip_uploads_cors_rule"
@@ -93,7 +93,7 @@ resource "aws_s3_bucket_cors_configuration" "extracted_files_cors" {
   cors_rule {
     allowed_headers = ["*"]
     allowed_methods = ["GET", "PUT", "POST", "DELETE", "HEAD"]
-    allowed_origins = ["*"]
+    allowed_origins = ["https://14strings.com"]
     expose_headers  = ["ETag"]
     max_age_seconds = 3000
     id              = "extracted_files_cors_rule"
