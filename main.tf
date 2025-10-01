@@ -53,6 +53,28 @@ resource "aws_s3_bucket_policy" "zip_uploads_policy" {
   })
 }
 
+resource "aws_s3_bucket_policy" "extracted_Files_policy" {
+  bucket = aws_s3_bucket.extracted_files.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "AllowUploads"        
+            "Effect": "Allow",
+            "Principal": {
+              "AWS": "${aws_iam_role.lambda_role.arn}"
+            },
+            "Action": [
+                "s3:PutObject",
+                "s3:PutObjectAcl"
+            ],
+        Resource  = "${aws_s3_bucket.extracted_files.arn}/*"        
+        }
+    ]
+  })
+}
+
 # S3 Bucket versioning for extracted files
 resource "aws_s3_bucket_versioning" "extracted_files_versioning" {
   bucket = aws_s3_bucket.extracted_files.id
