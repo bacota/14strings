@@ -30,6 +30,23 @@ resource "aws_s3_bucket" "extracted_files" {
   bucket = "tabs.14strings.com"
 }
 
+resource "aws_s3_bucket_public_access_block" "extracted_public_access_block" {
+  bucket = aws_s3_bucket.extracted_files.id
+  block_public_acls = false
+}
+
+resource "aws_s3_bucket_website_configuration" "static_website_config" {
+  bucket = aws_s3_bucket.extracted_files.id
+
+  index_document {
+    suffix = "index.html"
+  }
+  
+  error_document {
+    key = "error.html"
+  }
+}
+
 
 resource "aws_s3_bucket_policy" "zip_uploads_policy" {
   bucket = aws_s3_bucket.zip_uploads.id
@@ -60,7 +77,7 @@ resource "aws_s3_bucket_policy" "extracted_Files_policy" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid       = "AllowUploads"        
+        Sid       = "AllowUploads" ,
             "Effect": "Allow",
             "Principal": {
               "AWS": "${aws_iam_role.lambda_role.arn}"
@@ -70,7 +87,17 @@ resource "aws_s3_bucket_policy" "extracted_Files_policy" {
                 "s3:PutObjectAcl"
             ],
         Resource  = "${aws_s3_bucket.extracted_files.arn}/*"        
-        }
+        },
+      {
+        Sid       = "AllowReads",   
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": [
+                "s3:GetObject",
+                "s3:ListBucket"
+            ],
+        Resource  = ["${aws_s3_bucket.extracted_files.arn}/*", "${aws_s3_bucket.extracted_files.arn}"]
+      }
     ]
   })
 }
@@ -267,7 +294,7 @@ resource "aws_apigatewayv2_api" "main" {
   cors_configuration {
     allow_headers     = ["*"]
     allow_methods     = ["*"]
-    allow_origins     = ["*"]
+    allow_origins     = ["https://14strings.com"]
     max_age          = 300
   }
 }
