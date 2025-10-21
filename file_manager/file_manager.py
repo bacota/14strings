@@ -97,6 +97,8 @@ def handle_presigned_url_request(event):
         body = json.loads(event.get('body', '{}'))
         folder_name = body.get('folder_name', '').strip()
         filename = body.get('filename', '').strip()
+        if filename:
+            filename = 'tabs/' + filename
         
         if not folder_name or not filename:
             return {
@@ -188,6 +190,8 @@ def handle_folder_deletion(event):
         # Extract folder name from path parameters
         path_parameters = event.get('pathParameters', {})
         folder_name = path_parameters.get('folder_name', '').strip()
+        if folder_name:
+            folder_name = 'tabs/'
         
         if not folder_name:
             return {
