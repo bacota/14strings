@@ -348,8 +348,8 @@ resource "aws_apigatewayv2_route" "get_presigned_url" {
   api_id    = aws_apigatewayv2_api.main.id
   route_key = "POST /presigned-url"
   target    = "integrations/${aws_apigatewayv2_integration.file_manager.id}"
-  authorization_type = "JWT"
-  authorizer_id     = aws_apigatewayv2_authorizer.cognito.id
+#  authorization_type = "JWT"
+#  authorizer_id     = aws_apigatewayv2_authorizer.cognito.id
 }
 
 # API Gateway Route for folder deletion
@@ -357,8 +357,8 @@ resource "aws_apigatewayv2_route" "delete_folder" {
   api_id    = aws_apigatewayv2_api.main.id
   route_key = "DELETE /folder/{folder_name}"
   target    = "integrations/${aws_apigatewayv2_integration.file_manager.id}"
-  authorization_type = "JWT"
-  authorizer_id     = aws_apigatewayv2_authorizer.cognito.id
+#  authorization_type = "JWT"
+#  authorizer_id     = aws_apigatewayv2_authorizer.cognito.id
 }
 
 # API Gateway Route for file deletion
@@ -366,8 +366,8 @@ resource "aws_apigatewayv2_route" "delete_file" {
   api_id    = aws_apigatewayv2_api.main.id
   route_key = "DELETE /file"
   target    = "integrations/${aws_apigatewayv2_integration.file_manager.id}"
-  authorization_type = "JWT"
-  authorizer_id     = aws_apigatewayv2_authorizer.cognito.id
+#  authorization_type = "JWT"
+#  authorizer_id     = aws_apigatewayv2_authorizer.cognito.id
 }
 
 # API Gateway Stage

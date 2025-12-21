@@ -95,6 +95,7 @@ def handle_presigned_url_request(event):
     try:
         # Parse request body
         body = json.loads(event.get('body', '{}'))
+        folder_prefix = body.get('folder_prefix', '').strip()        
         folder_name = body.get('folder_name', '').strip()
         filename = body.get('filename', '').strip()
         
@@ -109,7 +110,7 @@ def handle_presigned_url_request(event):
                 'body': json.dumps({'error': 'folder_name and filename are required'})
             }
 
-        folder_name = 'tabs/' + folder_name
+        folder_name = folder_prefix + '/' + folder_name
         
         timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
         if filename.lower().endswith('.zip'):

@@ -321,7 +321,7 @@
         <div class="message" id="messageDiv"></div>
 
         <div class="upload-section" id="uploadSection">
-            <h3 style="color: #2c3e50; margin-bottom: 25px;">📤 Upload Zip Fil of Tabse</h3>
+            <h3 style="color: #2c3e50; margin-bottom: 25px;">📤 Upload Zip File of Tabs</h3>
             <form id="uploadForm">
                 <div class="form-group">
                     <label for="folderName">Target Folder Name:</label>
@@ -344,6 +344,7 @@
                     <div class="progress-text" id="progressText">Preparing upload...</div>
                 </div>
                 <button type="submit" class="btn" id="uploadBtn">Upload & Extract</button>
+                <input type="hidden" id="fileFolderPrefix" name="folder_prefix" value="tabs"/>
             </form>
         </div>
 
@@ -666,6 +667,7 @@
             }
 
             const folderName = document.getElementById('fileFolderName').value.trim();
+            const folderPrefix = document.getElementById('fileFolderPrefix').value.trim();                        
             const fileInput = document.getElementById('file');
             const file = fileInput.files[0];
 
@@ -691,7 +693,8 @@
                     },
                     body: JSON.stringify({
                         folder_name: folderName,
-                        filename: file.name
+                        filename: file.name,
+                        folder_prefix: folderPrefix,                        
                     })
                 });
 
