@@ -98,6 +98,8 @@ def handle_presigned_url_request(event):
         folder_prefix = body.get('folder_prefix', '').strip()        
         folder_name = body.get('folder_name', '').strip()
         filename = body.get('filename', '').strip()
+
+        metadata = { key : body[key] for key in body }
         
         if not folder_name or not filename:
             return {
@@ -120,11 +122,9 @@ def handle_presigned_url_request(event):
             bucket_name = EXTRACTED_BUCKET_NAME
             s3_key = f"{folder_name}/{filename}"
 
-        metadata = {
-            'target-folder': folder_name,
-            'original-filename': filename,
-            'upload-timestamp': timestamp
-        }
+        metadata['target-folder'] = folder_name
+        metadata['original-filename'] = filename
+        metadata['upload-timestamp'] = timestamp
         
         # Generate presigned URL with conditions
         presigned_url = s3_client.generate_presigned_url(
