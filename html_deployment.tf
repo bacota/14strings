@@ -18,6 +18,15 @@ resource "aws_s3_object" "admin_html" {
   content = data.template_file.web_html.rendered  
 }
 
+
+resource "aws_s3_object" "admin_js" {
+  bucket       = var.web_bucket
+  source ="${path.module}/html/admin.js"
+  key          = "admin.js"
+  content_type = "text/javascript"
+  etag = filemd5("${path.module}/html/admin.js")
+}
+
 data "template_file" "callback" {
   template = file("${path.module}/html/callback.html") 
   vars = {

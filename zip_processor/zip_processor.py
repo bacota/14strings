@@ -103,6 +103,7 @@ def extract_zip_file(zip_content, target_folder, original_filename):
                 
                 # Normalize path separators for consistency
                 s3_key = PREFIX + "/" + s3_key.replace('\\', '/')
+                s3_key = s3_key.replace('//', '/')
                 
                 try:
                     # Extract file content
