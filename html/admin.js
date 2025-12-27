@@ -36,9 +36,7 @@ function handleAuthentication() {
     isAdmin = userInfo.groups && userInfo.groups.includes('admin');
     
     if (isAdmin) {
-        document.getElementById('uploadSection').style.display = 'block';
-        document.getElementById('uploadFileSection').style.display = 'block';                
-        document.getElementById('apiSection').style.display = 'block';
+        unblock();
     } else {
         showMessage('You need admin privileges to use this application.', 'error');
     }
@@ -49,13 +47,10 @@ function handleLogout() {
     localStorage.removeItem('refreshToken');
     accessToken = null;
     isAdmin = false;
-    
+
     document.getElementById('authSection').style.display = 'block';
     document.getElementById('userInfo').style.display = 'none';
-    document.getElementById('uploadSection').style.display = 'none';
-    document.getElementById('uploadFileSection').style.display = 'none';            
-    document.getElementById('apiSection').style.display = 'none';
-    
+    block();    
     showMessage('Logged out successfully.', 'success');
 }
 
@@ -270,9 +265,11 @@ async function handleFileUpload(event, file, data) {
         
         showMessage('File uploaded successfully!', 'success');
         
-        // Reset form
-        document.getElementById('uploadForm').reset();
-        updateNonZipFileDisplay(null);
+        // Reset forms
+        const forms = document.forms;
+        for (i=0; i<forms.length; ++i) {
+            document.getElementById(forms[i].id).reset();
+        }
         
     } catch (error) {
         console.error('Upload error:', error);

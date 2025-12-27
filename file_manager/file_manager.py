@@ -101,7 +101,7 @@ def handle_presigned_url_request(event):
 
         metadata = { key : body[key] for key in body }
         
-        if not folder_name or not filename:
+        if not filename:
             return {
                 'statusCode': 400,
                 'headers': {
@@ -109,10 +109,13 @@ def handle_presigned_url_request(event):
                     'Access-Control-Allow-Origin': '*',
                     'Access-Control-Allow-Credentials': 'true'
                 },
-                'body': json.dumps({'error': 'folder_name and filename are required'})
+                'body': json.dumps({'error': 'file_name is required'})
             }
 
-        folder_name = folder_prefix + '/' + folder_name
+        if folder_name:
+            folder_name = folder_prefix + '/' + folder_name
+        else:
+            folder_name = folder_prefix + '/'
         
         timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
         if filename.lower().endswith('.zip'):

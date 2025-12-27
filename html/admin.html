@@ -407,6 +407,18 @@
             awsRegion: '${aws_region}'
         };
 
+      function unblock() {
+          document.getElementById('uploadSection').style.display = 'block';
+          document.getElementById('uploadFileSection').style.display = 'block';                
+          document.getElementById('apiSection').style.display = 'block';
+      }
+
+      function block() {
+        document.getElementById('uploadSection').style.display = 'none';
+          document.getElementById('uploadFileSection').style.display = 'none';            
+          document.getElementById('apiSection').style.display = 'none';
+      }
+        
       async function handleFileUploadEvent() {
           const fileInput = document.getElementById('file');
           const file = fileInput.files[0];           
