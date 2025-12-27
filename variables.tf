@@ -13,7 +13,7 @@ variable "project_name" {
 variable "web_bucket" {
   description = "Name of the existing S3 bucket for web content"
   type        = string
-  default     = "14strings.com"  
+  default     = "14strings.com"
 }
 
 variable "admin_username" {
@@ -24,13 +24,13 @@ variable "admin_username" {
 
 variable "admin_email" {
   description = "Email for the admin user"
-  default     = "bruce.cota@vivi.com"  
+  default     = "bruce.cota@vivi.com"
   type        = string
 }
 
 variable "admin_temporary_password" {
   description = "Temporary password for the admin user"
   type        = string
-  default     = "harigoshi"  
+  default     = "harigoshi"
   sensitive   = true
 }
