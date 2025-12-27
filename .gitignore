@@ -4,3 +4,5 @@
 lambda_package
 plan
 terraform.*
+__pycache__
+*.pyc

@@ -8,13 +8,17 @@ A serverless web application for uploading and managing zip files on AWS S3 with
 - **File Upload**: Presigned URL upload with 256MB file size limit
 - **Automated Processing**: Lambda-triggered zip extraction preserving directory structure
 - **File Management**: API endpoints for deleting folders and specific files
+- **Metadata Management**: Update S3 object metadata through API endpoint
 - **Web Interface**: Responsive HTML interface with drag-and-drop file upload
 - **Admin Controls**: Restricted access to admin group members only
 
 ## Architecture
 
 - **S3 Buckets**: Separate buckets for zip uploads and extracted files
-- **Lambda Functions**: File manager (API) and zip processor (S3-triggered)
+- **Lambda Functions**: 
+  - File manager (API) - Handles presigned URLs, file deletion
+  - Zip processor (S3-triggered) - Extracts uploaded zip files
+  - Metadata updater (API) - Updates S3 object metadata
 - **API Gateway**: HTTP API with Cognito JWT authorization
 - **Cognito**: User pool with admin group and hosted UI
 - **CloudWatch**: Logging for API Gateway and Lambda functions
@@ -66,12 +70,19 @@ zip-file-manager/
 ├── outputs.tf             # Output values
 ├── lambda_archives.tf     # Lambda function archives
 ├── html_deployment.tf     # Web file deployment
-├── lambda/
+├── file_manager/
 │   ├── file_manager.py    # API Lambda function
-│   └── zip_processor.py   # S3 event processor
+│   └── requirements.txt   # Python dependencies
+├── zip_processor/
+│   ├── zip_processor.py   # S3 event processor
+│   └── requirements.txt   # Python dependencies
+├── metadata_updater/
+│   ├── metadata_updater.py # S3 metadata updater
+│   └── requirements.txt   # Python dependencies
 ├── html/
 │   ├── index.html         # Main web interface
 │   └── callback.html      # Auth callback handler
+├── build_and_deploy.sh    # Build and deployment script
 ├── terraform.tfvars.example
 └── README.md
 ```
@@ -89,6 +100,37 @@ Authorization: Bearer <token>
 {
   "folder_name": "my-folder",
   "filename": "archive.zip"
+}
+```
+
+### Update S3 Object Metadata
+```
+POST /update-metadata
+Content-Type: application/json
+Authorization: Bearer <token>
+
+{
+  "bucket_name": "my-bucket",
+  "object_key": "path/to/object.jpg",
+  "metadata": {
+    "caption": "My caption",
+    "position": "center",
+    "custom-key": "custom-value"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Successfully updated metadata for path/to/object.jpg",
+  "bucket": "my-bucket",
+  "object_key": "path/to/object.jpg",
+  "metadata": {
+    "caption": "My caption",
+    "position": "center",
+    "custom-key": "custom-value"
+  }
 }
 ```
 
@@ -193,6 +235,97 @@ Modify Cognito configuration or implement custom authorizers in `main.tf`.
 - Check Lambda timeout settings
 - Review zip processor logs
 - Verify S3 permissions
+
+### Metadata Update Issues
+- Verify object exists in the specified bucket
+- Check that Lambda has s3:GetObject, s3:CopyObject permissions
+- Ensure metadata keys are valid (lowercase, alphanumeric, hyphens)
+- Review Lambda logs in CloudWatch
+
+## Testing the Metadata Update API
+
+### Using cURL
+
+1. **Get an authentication token** (via Cognito login)
+
+2. **Test updating metadata**:
+```bash
+curl -X POST https://<api-gateway-url>/prod/update-metadata \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <your-token>" \
+  -d '{
+    "bucket_name": "tabs.14strings.com",
+    "object_key": "tabs/my-folder/image.jpg",
+    "metadata": {
+      "caption": "Updated caption",
+      "position": "center",
+      "author": "John Doe"
+    }
+  }'
+```
+
+3. **Verify metadata was updated**:
+```bash
+aws s3api head-object \
+  --bucket tabs.14strings.com \
+  --key tabs/my-folder/image.jpg \
+  --query Metadata
+```
+
+### Using Python
+
+```python
+import requests
+
+api_url = "https://<api-gateway-url>/prod/update-metadata"
+token = "<your-auth-token>"
+
+payload = {
+    "bucket_name": "tabs.14strings.com",
+    "object_key": "tabs/my-folder/image.jpg",
+    "metadata": {
+        "caption": "My image caption",
+        "position": "center"
+    }
+}
+
+headers = {
+    "Content-Type": "application/json",
+    "Authorization": f"Bearer {token}"
+}
+
+response = requests.post(api_url, json=payload, headers=headers)
+print(response.json())
+```
+
+### Expected Response
+
+Success (200):
+```json
+{
+  "message": "Successfully updated metadata for tabs/my-folder/image.jpg",
+  "bucket": "tabs.14strings.com",
+  "object_key": "tabs/my-folder/image.jpg",
+  "metadata": {
+    "caption": "My image caption",
+    "position": "center"
+  }
+}
+```
+
+Error (404 - Object not found):
+```json
+{
+  "error": "Object not found: tabs/my-folder/image.jpg"
+}
+```
+
+Error (400 - Invalid request):
+```json
+{
+  "error": "bucket_name is required"
+}
+```
 
 ## Cleanup
 
