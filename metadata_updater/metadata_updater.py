@@ -17,9 +17,17 @@ CORS_HEADERS = {
     'Access-Control-Allow-Credentials': 'true'
 }
 
+# Validation patterns
+BUCKET_NAME_PATTERN = r'^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$'
+IP_ADDRESS_PATTERN = r'^\d+\.\d+\.\d+\.\d+$'
+
 def verify_admin_access(event):
     """
     Verify that the user belongs to the admin group
+    
+    Note: JWT signature verification is disabled here because API Gateway with
+    JWT authorizer already validates the token signature before invoking this Lambda.
+    This function only checks group membership from the pre-validated token.
     """
     try:
         # Extract JWT token from Authorization header
@@ -29,7 +37,7 @@ def verify_admin_access(event):
             
         token = auth_header[7:]  # Remove 'Bearer ' prefix
         
-        # Decode without verification (API Gateway already verified)
+        # Decode without verification (API Gateway already verified the signature)
         decoded_token = jwt.decode(token, algorithms=["RS256"], options={"verify_signature": False})
         
         # Check if user belongs to admin group
@@ -49,12 +57,11 @@ def validate_bucket_name(bucket_name):
     
     # Check bucket name format (lowercase letters, numbers, dots, hyphens)
     # Must start and end with letter or number
-    pattern = r'^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$'
-    if not re.match(pattern, bucket_name):
+    if not re.match(BUCKET_NAME_PATTERN, bucket_name):
         return False
     
     # Must not contain consecutive dots or look like IP address
-    if '..' in bucket_name or re.match(r'^\d+\.\d+\.\d+\.\d+$', bucket_name):
+    if '..' in bucket_name or re.match(IP_ADDRESS_PATTERN, bucket_name):
         return False
     
     return True
