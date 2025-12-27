@@ -44,6 +44,14 @@ resource "aws_s3_object" "admin_js" {
   etag         = filemd5("${path.module}/html/admin.js")
 }
 
+resource "aws_s3_object" "roster_js" {
+  bucket       = var.web_bucket
+  source       = "${path.module}/html/roster.js"
+  key          = "roster.js"
+  content_type = "text/javascript"
+  etag         = filemd5("${path.module}/html/admin.js")
+}
+
 data "template_file" "callback" {
   template = file("${path.module}/html/callback.html")
   vars = {
