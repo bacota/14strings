@@ -351,6 +351,7 @@
         <div class="upload-section" id="uploadFileSection">
             <h3 style="color: #2c3e50; margin-bottom: 25px;">📤 Upload Individual Tab File</h3>
             <form id="uploadFileForm">
+              <input type="hidden" name="folderPrefix" id="folderPrefix" value="tabs"/>
                 <div class="form-group">
                     <label for="fileFolderName">Target Folder Name:</label>
                     <input type="text" id="fileFolderName" name="fileFolderName" required 
@@ -405,6 +406,37 @@
             redirectUri: '${redirect_uri}',
             awsRegion: '${aws_region}'
         };
+
+
+        function setupEventListeners() {
+        // Upload form
+        document.getElementById('uploadForm').addEventListener('submit', handleUpload);
+        document.getElementById('uploadFileForm').addEventListener('submit', handleFileUpload);            
+        
+        // File input
+        const zipInput = document.getElementById('zipFile');
+        zipInput.addEventListener('change', handleZipFileSelect);
+        
+        // Drag and drop
+        const zipFileDisplay = document.getElementById('fileDisplayText');
+        zipFileDisplay.addEventListener('dragover', handleDragOver);
+        zipFileDisplay.addEventListener('drop', handleZipDrop);
+        
+        const fileDisplay = document.getElementById('fileText');
+        fileDisplay.addEventListener('dragover', handleDragOver);
+        fileDisplay.addEventListener('drop', handleFileDrop);
+        
+        const fileInput = document.getElementById('file');
+        fileInput.addEventListener('change', handleNonZipFileSelect);
+        
+        // API controls
+        document.getElementById('deleteFolderBtn').addEventListener('click', deleteFolder);
+        document.getElementById('deleteFilesBtn').addEventListener('click', deleteFiles);
+        
+        // Logout
+        document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+        }
+      
 
         document.addEventListener('DOMContentLoaded', function() {
             initializeApp();
