@@ -125,12 +125,12 @@ def handle_presigned_url_request(event):
             bucket_name = EXTRACTED_BUCKET_NAME
             s3_key = f"{folder_name}/{filename}"
 
+        s3_key = s3_key.replace('//', '/')
+
         metadata['target-folder'] = folder_name
         metadata['original-filename'] = filename
         metadata['upload-timestamp'] = timestamp
 
-        print(metadata)
-        
         # Generate presigned URL with conditions
         presigned_url = s3_client.generate_presigned_url(
             'put_object',
@@ -143,18 +143,27 @@ def handle_presigned_url_request(event):
             HttpMethod='PUT'
         )
 
-        fields = { 'x-amz-meta-'+key : metadata[key]  for key in metadata }
-        conditions =  ['content-length-range', 1, 268435456] + [
+        fields = {
+                'x-amz-meta-target-folder': folder_name,
+                'x-amz-meta-original-filename': filename,
+                'x-amz-meta-upload-timestamp': timestamp
+            }
+
+        for key in ['caption', 'position']:
+            if key in body:
+                fields[f"x-amz-meta-{key}"] = body[key]
+
+        conditions =  [['content-length-range', 1, 268435456]] + [
             {key:fields[key]} for key in fields
         ]
-
+        
         # Generate presigned POST for better error handling
         presigned_post = s3_client.generate_presigned_post(
             Bucket=bucket_name,
             Key=s3_key,
             Fields=fields,
             Conditions=conditions,
-            ExpiresIn=300
+            ExpiresIn=3600
         )
         
         return {
