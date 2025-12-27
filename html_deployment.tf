@@ -36,6 +36,25 @@ resource "aws_s3_object" "roster_admin_html" {
   content      = data.template_file.roster_admin_template.rendered
 }
 
+
+data "template_file" "roster_template" {
+  template = file("${path.module}/html/roster.html")
+  vars = {
+    api_endpoint   = "${aws_apigatewayv2_api.main.api_endpoint}/prod"
+    cognito_domain = aws_cognito_user_pool_domain.main.domain
+    client_id      = aws_cognito_user_pool_client.main.id
+    redirect_uri   = "https://14strings.com/callback.html"
+    aws_region     = var.aws_region
+  }
+}
+
+resource "aws_s3_object" "roster_html" {
+  bucket       = var.web_bucket
+  key          = "roster.html"
+  content_type = "text/html"
+  content      = data.template_file.roster_template.rendered
+}
+
 resource "aws_s3_object" "admin_js" {
   bucket       = var.web_bucket
   source       = "${path.module}/html/admin.js"
