@@ -142,7 +142,7 @@ async function handleUpload(event) {
             },
             body: JSON.stringify({
                 folder_name: folderName,
-                filename: file.name
+                file_name: file.name
             })
         });
 
@@ -218,21 +218,12 @@ function updateNonZipFileDisplay(file) {
     }
 }
 
-async function handleFileUpload(event) {
+async function handleFileUpload(event, file, data) {
+
     event.preventDefault();
     
     if (!isAdmin) {
         showMessage('Admin privileges required.', 'error');
-        return;
-    }
-
-    const folderName = document.getElementById('fileFolderName').value.trim();
-    const folderPrefix = document.getElementById('folderPrefix').value.trim();
-    const fileInput = document.getElementById('file');
-    const file = fileInput.files[0];
-
-    if (!folderName || !file) {
-        showMessage('Please fill in all fields.', 'error');
         return;
     }
 
@@ -251,11 +242,7 @@ async function handleFileUpload(event) {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${idToken}`
             },
-            body: JSON.stringify({
-                folder_name: folderName,
-                filename: file.name,
-                folder_prefix: folderPrefix,                        
-            })
+            body: JSON.stringify(data)
         });
 
         if (!presignedResponse.ok) {

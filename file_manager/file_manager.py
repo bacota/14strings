@@ -97,7 +97,7 @@ def handle_presigned_url_request(event):
         body = json.loads(event.get('body', '{}'))
         folder_prefix = body.get('folder_prefix', '').strip()        
         folder_name = body.get('folder_name', '').strip()
-        filename = body.get('filename', '').strip()
+        filename = body.get('file_name', '').strip()
 
         metadata = { key : body[key] for key in body }
         

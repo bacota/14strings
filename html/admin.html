@@ -407,12 +407,22 @@
             awsRegion: '${aws_region}'
         };
 
+      async function handleFileUploadEvent() {
+          const fileInput = document.getElementById('file');
+          const file = fileInput.files[0];           
+          const formData = {
+              "file_name" : file.name,
+              "folder_name" : document.getElementById('fileFolderName').value.trim(),
+              "folder_prefix":  document.getElementById('folderPrefix').value.trim()
+          }
+          handleFileUpload(event, file, formData);
+      }
 
         function setupEventListeners() {
         // Upload form
-        document.getElementById('uploadForm').addEventListener('submit', handleUpload);
-        document.getElementById('uploadFileForm').addEventListener('submit', handleFileUpload);            
-        
+        document.getElementById('uploadForm').addEventListener('submit', handleUpload);    
+        document.getElementById('uploadFileForm').addEventListener('submit', handleFileUploadEvent);
+            
         // File input
         const zipInput = document.getElementById('zipFile');
         zipInput.addEventListener('change', handleZipFileSelect);
