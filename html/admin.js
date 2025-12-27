@@ -412,7 +412,7 @@ async function updateS3Metadata(bucketName, objectKey, metadata) {
         return;
     }
 
-    if (!metadata || typeof metadata !== 'object') {
+    if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata) || metadata === null) {
         showMessage('Metadata must be a valid object.', 'error');
         return;
     }
