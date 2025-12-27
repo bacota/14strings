@@ -121,7 +121,7 @@ resource "aws_s3_bucket_cors_configuration" "extracted_files_cors" {
     allowed_headers = ["*"]
     allowed_methods = ["GET", "PUT", "POST", "DELETE", "HEAD"]
     allowed_origins = ["https://14strings.com"]
-    expose_headers  = ["ETag"]
+    expose_headers  = ["ETag", "x-amz-meta-caption", "x-amz-meta-position"]    
     max_age_seconds = 3000
     id              = "extracted_files_cors_rule"
   }
