@@ -53,6 +53,7 @@ resource "aws_lambda_function" "metadata_updater" {
     variables = {
       ZIP_BUCKET_NAME       = aws_s3_bucket.zip_uploads.bucket
       EXTRACTED_BUCKET_NAME = aws_s3_bucket.extracted_files.bucket
+      ADMIN_GROUP_NAME      = aws_cognito_user_group.admin.name
     }
   }
 }

@@ -1,9 +1,80 @@
 import json
 import boto3
 import os
+import re
+import jwt
 from botocore.exceptions import ClientError
 
 s3_client = boto3.client('s3')
+
+# Environment variables
+ADMIN_GROUP_NAME = os.environ.get('ADMIN_GROUP_NAME', 'admin')
+
+# Common CORS headers
+CORS_HEADERS = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Credentials': 'true'
+}
+
+def verify_admin_access(event):
+    """
+    Verify that the user belongs to the admin group
+    """
+    try:
+        # Extract JWT token from Authorization header
+        auth_header = event.get('headers', {}).get('authorization', '')
+        if not auth_header.startswith('Bearer '):
+            return False
+            
+        token = auth_header[7:]  # Remove 'Bearer ' prefix
+        
+        # Decode without verification (API Gateway already verified)
+        decoded_token = jwt.decode(token, algorithms=["RS256"], options={"verify_signature": False})
+        
+        # Check if user belongs to admin group
+        cognito_groups = decoded_token.get('cognito:groups', [])
+        return ADMIN_GROUP_NAME in cognito_groups
+        
+    except Exception as e:
+        print(f"Error verifying admin access: {str(e)}")
+        return False
+
+def validate_bucket_name(bucket_name):
+    """
+    Validate S3 bucket name according to AWS naming rules
+    """
+    if not bucket_name or len(bucket_name) < 3 or len(bucket_name) > 63:
+        return False
+    
+    # Check bucket name format (lowercase letters, numbers, dots, hyphens)
+    # Must start and end with letter or number
+    pattern = r'^[a-z0-9][a-z0-9.-]*[a-z0-9]$'
+    if not re.match(pattern, bucket_name):
+        return False
+    
+    # Must not contain consecutive dots or look like IP address
+    if '..' in bucket_name or re.match(r'^\d+\.\d+\.\d+\.\d+$', bucket_name):
+        return False
+    
+    return True
+
+def validate_object_key(object_key):
+    """
+    Validate S3 object key to prevent path traversal
+    """
+    if not object_key:
+        return False
+    
+    # Check for path traversal attempts
+    if '..' in object_key or object_key.startswith('/'):
+        return False
+    
+    # Key length should not exceed 1024 characters (AWS limit)
+    if len(object_key) > 1024:
+        return False
+    
+    return True
 
 def lambda_handler(event, context):
     """
@@ -15,6 +86,14 @@ def lambda_handler(event, context):
     - metadata: Dictionary of metadata key-value pairs to apply
     """
     try:
+        # Verify admin group membership
+        if not verify_admin_access(event):
+            return {
+                'statusCode': 403,
+                'headers': CORS_HEADERS,
+                'body': json.dumps({'error': 'Access denied. Admin group membership required.'})
+            }
+        
         # Parse request body
         body = json.loads(event.get('body', '{}'))
         bucket_name = body.get('bucket_name', '').strip()
@@ -25,34 +104,38 @@ def lambda_handler(event, context):
         if not bucket_name:
             return {
                 'statusCode': 400,
-                'headers': {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Credentials': 'true'
-                },
+                'headers': CORS_HEADERS,
                 'body': json.dumps({'error': 'bucket_name is required'})
             }
         
         if not object_key:
             return {
                 'statusCode': 400,
-                'headers': {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Credentials': 'true'
-                },
+                'headers': CORS_HEADERS,
                 'body': json.dumps({'error': 'object_key is required'})
             }
         
         if not isinstance(metadata, dict):
             return {
                 'statusCode': 400,
-                'headers': {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Credentials': 'true'
-                },
+                'headers': CORS_HEADERS,
                 'body': json.dumps({'error': 'metadata must be a dictionary'})
+            }
+        
+        # Validate bucket name
+        if not validate_bucket_name(bucket_name):
+            return {
+                'statusCode': 400,
+                'headers': CORS_HEADERS,
+                'body': json.dumps({'error': 'Invalid bucket name format'})
+            }
+        
+        # Validate object key
+        if not validate_object_key(object_key):
+            return {
+                'statusCode': 400,
+                'headers': CORS_HEADERS,
+                'body': json.dumps({'error': 'Invalid object key format'})
             }
         
         # Get the current object metadata
@@ -65,11 +148,7 @@ def lambda_handler(event, context):
             if e.response['Error']['Code'] == '404':
                 return {
                     'statusCode': 404,
-                    'headers': {
-                        'Content-Type': 'application/json',
-                        'Access-Control-Allow-Origin': '*',
-                        'Access-Control-Allow-Credentials': 'true'
-                    },
+                    'headers': CORS_HEADERS,
                     'body': json.dumps({'error': f'Object not found: {object_key}'})
                 }
             raise
@@ -99,11 +178,7 @@ def lambda_handler(event, context):
         
         return {
             'statusCode': 200,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Credentials': 'true'
-            },
+            'headers': CORS_HEADERS,
             'body': json.dumps({
                 'message': f'Successfully updated metadata for {object_key}',
                 'bucket': bucket_name,
@@ -119,11 +194,7 @@ def lambda_handler(event, context):
         
         return {
             'statusCode': 500,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Credentials': 'true'
-            },
+            'headers': CORS_HEADERS,
             'body': json.dumps({
                 'error': f'AWS error: {error_message}',
                 'error_code': error_code
@@ -134,10 +205,6 @@ def lambda_handler(event, context):
         print(f"Error: {str(e)}")
         return {
             'statusCode': 500,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Credentials': 'true'
-            },
+            'headers': CORS_HEADERS,
             'body': json.dumps({'error': f'Internal server error: {str(e)}'})
         }
