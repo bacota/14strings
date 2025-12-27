@@ -185,7 +185,6 @@ function handleFileDrop(event) {
     event.currentTarget.style.backgroundColor = '#f8f9fa';
 
     const files = event.dataTransfer.files;
-    console.log("Files length is " + files.length)
     if (files.length > 0) {
         const file = files[0];
         if (!file.name.toLowerCase().endsWith('.zip')) {
@@ -229,6 +228,7 @@ async function handleFileUpload(event, file, data) {
 
     try {
         showProgress(0, 'Getting upload URL...');
+        console.log(data)
         
         // Get presigned URL
         const presignedResponse = await fetch(`${CONFIG.apiEndpoint}/presigned-url`, {
@@ -239,6 +239,8 @@ async function handleFileUpload(event, file, data) {
             },
             body: JSON.stringify(data)
         });
+
+        console.log(JSON.stringify(data))
 
         if (!presignedResponse.ok) {
             const errorData = await presignedResponse.json();
@@ -251,6 +253,8 @@ async function handleFileUpload(event, file, data) {
         
         // Upload file using presigned POST
         const formData = new FormData();
+
+        console.log(presigned_post.fields)
         
         // Add all the fields from presigned_post
         Object.entries(presigned_post.fields).forEach(([key, value]) => {

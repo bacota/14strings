@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>14Strings! Roster Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 800px;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            font-size: 2.5rem;
+            font-weight: 300;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #7f8c8d;
+            font-size: 1.1rem;
+        }
+
+        .auth-section {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.6);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .upload-section {
+            display: none;
+            margin-bottom: 40px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+
+        .form-group input[type="text"],
+        .form-group input[type="file"] {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input[type="text"]:focus,
+        .form-group input[type="file"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input {
+            opacity: 0;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-input-display {
+            display: block;
+            padding: 15px;
+            border: 2px dashed #667eea;
+            border-radius: 10px;
+            text-align: center;
+            background: #f8f9fa;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .file-input-display:hover {
+            background: #e9ecef;
+            border-color: #764ba2;
+        }
+
+        .progress-container {
+            display: none;
+            margin-bottom: 20px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            text-align: center;
+            margin-top: 10px;
+            color: #6c757d;
+        }
+
+        .api-section {
+            display: none;
+            margin-bottom: 40px;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 15px;
+        }
+
+        .api-section h3 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+
+        .api-controls {
+            display: grid;
+            gap: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        }
+
+        .api-control {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #dee2e6;
+        }
+
+        .api-control h4 {
+            color: #495057;
+            margin-bottom: 15px;
+        }
+
+        .api-control input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
+        .api-control button {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .api-control button:hover {
+            background: #218838;
+        }
+
+        .api-control button.delete {
+            background: #dc3545;
+        }
+
+        .api-control button.delete:hover {
+            background: #c82333;
+        }
+
+        .message {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .message.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .message.info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+
+        .user-info {
+            background: #e3f2fd;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            display: none;
+        }
+
+        .user-info h3 {
+            color: #1976d2;
+            margin-bottom: 10px;
+        }
+
+        .user-info p {
+            color: #424242;
+            margin: 5px 0;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 20px;
+                padding: 30px 20px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .api-controls {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🗂️ 14Strings! Roster Manager</h1>
+            <p>Upload and manage roster images</p>
+        </div>
+
+        <div class="auth-section" id="authSection">
+            <p style="margin-bottom: 20px; color: #6c757d;">Please sign in to access the file manager</p>
+            <a href="#" class="btn" id="loginBtn">Sign In with Cognito</a>
+        </div>
+
+        <div class="user-info" id="userInfo">
+            <h3>👤 User Information</h3>
+            <p><strong>Email:</strong> <span id="userEmail"></span></p>
+            <p><strong>Groups:</strong> <span id="userGroups"></span></p>
+            <button class="btn" id="logoutBtn" style="margin-top: 15px; background: #dc3545;">Sign Out</button>
+        </div>
+
+        <div class="message" id="messageDiv"></div>
+        <div class="upload-section" id="uploadFileSection">
+            <h3 style="color: #2c3e50; margin-bottom: 25px;">📤 Upload Roster File</h3>
+            <form id="uploadFileForm">
+                <div class="form-group">
+                    <label for="file">Select  Image(Max 10MB):</label>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="file" name="file" required class="file-input" />
+                        <div class="file-input-display">
+                            <span id="fileText">Click here to select a file or drag and drop</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="caption">Caption:</label>
+                    <input type="text" id="caption" name="caption" required placeholder="Enter a caption for the image"/>
+                </div>
+                <div class="form-group">
+                    <label for="sequence">Position:</label>
+                    <input type="number" id="position" name="position" required placeholder="Enter position"  min="1" max="100"/>
+                </div>
+                <div class="progress-container" id="fileProgressContainer">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="fileProgressFill"></div>
+                    </div>
+                    <div class="progress-text" id="fileProgressText">Preparing upload...</div>
+                </div>
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">Preparing upload...</div>
+                </div>
+                <button type="submit" class="btn" id="fileUploadBtn">Upload File</button>
+            </form>
+        </div>
+        
+
+        <script src="admin.js"></script>
+
+        <script>
+        // Configuration (populated by Terraform)
+        const CONFIG = {
+            apiEndpoint: '${api_endpoint}',
+            cognitoDomain: '${cognito_domain}',
+            clientId: '${client_id}',
+            redirectUri: '${redirect_uri}',
+            awsRegion: '${aws_region}'
+        };
+
+      function unblock() {
+          document.getElementById('uploadFileSection').style.display = 'block';                
+      }
+
+      function block() {
+          document.getElementById('uploadFileSection').style.display = 'none';            
+      }
+          
+      async function handleFileUploadEvent() {
+          const fileInput = document.getElementById('file');
+          const file = fileInput.files[0];           
+          const formData = {
+              "file_name" : file.name,
+              "caption":  document.getElementById('caption').value.trim(),
+              "position":  document.getElementById('position').value.trim(),
+              "folder_prefix":  "roster"
+          }
+          handleFileUpload(event, file, formData);
+      }
+
+        function setupEventListeners() {
+        // Upload form
+        document.getElementById('uploadFileForm').addEventListener('submit', handleFileUploadEvent);
+            
+        const fileDisplay = document.getElementById('fileText');
+        fileDisplay.addEventListener('dragover', handleDragOver);
+        fileDisplay.addEventListener('drop', handleFileDrop);
+        
+        const fileInput = document.getElementById('file');
+        fileInput.addEventListener('change', handleNonZipFileSelect);
+        
+        // Logout
+        document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+        }
+      
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+            setupEventListeners();
+        });
+    </script>
+        
+</body>
+</html>
