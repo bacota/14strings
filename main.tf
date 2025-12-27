@@ -272,6 +272,7 @@ resource "aws_iam_role_policy" "lambda_policy" {
         Action = [
           "s3:GetObject",
           "s3:PutObject",
+          "s3:CopyObject",
           "s3:DeleteObject",
           "s3:ListBucket"
         ]
@@ -343,6 +344,14 @@ resource "aws_apigatewayv2_integration" "file_manager" {
   integration_method = "POST"
 }
 
+# API Gateway Lambda Integration for metadata updater
+resource "aws_apigatewayv2_integration" "metadata_updater" {
+  api_id             = aws_apigatewayv2_api.main.id
+  integration_type   = "AWS_PROXY"
+  integration_uri    = aws_lambda_function.metadata_updater.invoke_arn
+  integration_method = "POST"
+}
+
 # API Gateway Route for presigned URL generation
 resource "aws_apigatewayv2_route" "get_presigned_url" {
   api_id    = aws_apigatewayv2_api.main.id
@@ -366,6 +375,15 @@ resource "aws_apigatewayv2_route" "delete_file" {
   api_id    = aws_apigatewayv2_api.main.id
   route_key = "DELETE /file"
   target    = "integrations/${aws_apigatewayv2_integration.file_manager.id}"
+#  authorization_type = "JWT"
+#  authorizer_id     = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# API Gateway Route for metadata update
+resource "aws_apigatewayv2_route" "update_metadata" {
+  api_id    = aws_apigatewayv2_api.main.id
+  route_key = "POST /update-metadata"
+  target    = "integrations/${aws_apigatewayv2_integration.metadata_updater.id}"
 #  authorization_type = "JWT"
 #  authorizer_id     = aws_apigatewayv2_authorizer.cognito.id
 }
@@ -402,6 +420,15 @@ resource "aws_lambda_permission" "api_gateway_invoke" {
   statement_id  = "AllowExecutionFromAPIGateway"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.file_manager.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.main.execution_arn}/*/*"
+}
+
+# Lambda permission for API Gateway to invoke metadata updater
+resource "aws_lambda_permission" "api_gateway_invoke_metadata_updater" {
+  statement_id  = "AllowExecutionFromAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.metadata_updater.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.main.execution_arn}/*/*"
 }

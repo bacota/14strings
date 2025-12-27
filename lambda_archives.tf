@@ -38,3 +38,21 @@ resource "aws_lambda_function" "zip_processor" {
     }
   }
 }
+
+# Metadata Updater Lambda Function
+resource "aws_lambda_function" "metadata_updater" {
+  filename         = "metadata_updater.zip"
+  function_name    = "${var.project_name}-metadata-updater"
+  source_code_hash = filebase64sha256("metadata_updater.zip")
+  role            = aws_iam_role.lambda_role.arn
+  handler         = "metadata_updater.lambda_handler"
+  runtime         = "python3.13"
+  timeout         = 30
+
+  environment {
+    variables = {
+      ZIP_BUCKET_NAME       = aws_s3_bucket.zip_uploads.bucket
+      EXTRACTED_BUCKET_NAME = aws_s3_bucket.extracted_files.bucket
+    }
+  }
+}

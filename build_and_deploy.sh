@@ -31,6 +31,7 @@ build_lambda()  {
 
 build_lambda "file_manager"
 build_lambda "zip_processor"
+build_lambda "metadata_updater"
 
 echo
 echo "Running terraform init & apply..."
