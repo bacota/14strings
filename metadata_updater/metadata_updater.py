@@ -49,7 +49,7 @@ def validate_bucket_name(bucket_name):
     
     # Check bucket name format (lowercase letters, numbers, dots, hyphens)
     # Must start and end with letter or number
-    pattern = r'^[a-z0-9][a-z0-9.-]*[a-z0-9]$'
+    pattern = r'^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$'
     if not re.match(pattern, bucket_name):
         return False
     
