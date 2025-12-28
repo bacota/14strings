@@ -401,52 +401,6 @@ async function deleteFiles() {
     }
 }
 
-async function updateS3Metadata(bucketName, objectKey, metadata) {
-    if (!isAdmin) {
-        showMessage('Admin privileges required.', 'error');
-        return;
-    }
-
-    if (!bucketName || !objectKey) {
-        showMessage('Bucket name and object key are required.', 'error');
-        return;
-    }
-
-    if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata) || metadata === null) {
-        showMessage('Metadata must be a valid object.', 'error');
-        return;
-    }
-
-    try {
-        const response = await fetch(`${CONFIG.apiEndpoint}/update-metadata`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${accessToken}`
-            },
-            body: JSON.stringify({
-                bucket_name: bucketName,
-                object_key: objectKey,
-                metadata: metadata
-            })
-        });
-
-        const result = await response.json();
-
-        if (response.ok) {
-            showMessage(`Successfully updated metadata for ${objectKey}`, 'success');
-            return result;
-        } else {
-            showMessage(`Failed to update metadata: ${result.error}`, 'error');
-            return null;
-        }
-    } catch (error) {
-        console.error('Update metadata error:', error);
-        showMessage(`Error updating metadata: ${error.message}`, 'error');
-        return null;
-    }
-}
-
 function showProgress(percent, text) {
     const container = document.getElementById('progressContainer');
     const fill = document.getElementById('progressFill');

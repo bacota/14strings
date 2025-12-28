@@ -285,6 +285,7 @@
               <p class="subtitle">Images from tabs.14strings.com/roster</p>
               -->
         </header>
+        <div class="message" id="messageDiv"></div>        
         <main>
             <div id="slideshow-container"></div>
         </main>
@@ -297,7 +298,23 @@
 
     <script>
       const is_admin = true;
+
+      const CONFIG = {
+          apiEndpoint: '${api_endpoint}',
+          cognitoDomain: '${cognito_domain}',
+          clientId: '${client_id}',
+          redirectUri: '${redirect_uri}',
+          awsRegion: '${aws_region}'
+      };
+
+    accessToken = localStorage.getItem('accessToken');
+    idToken = localStorage.getItem('idToken');
+    user = localStorage.getItem('userInfo');
+    token = accessToken
+      
     </script>
+    
     <script type="module" src="roster.js"></script>
+    
 </body>
 </html>

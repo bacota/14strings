@@ -169,17 +169,16 @@ function render() {
 
     const updateCaption = !is_admin ? `<p class="caption">${escapeHtml(currentImage.caption)}</p> ` : `
         <form id="updateCaption">
-              <input type="hidden" name="key" id="key" value="${escapeHtml(currentImage.key)}"/>
+              <input type="hidden" name="key" id="imageKey" value="${escapeHtml(currentImage.key)}"/>
                 <div class="form-group">
+                    <input type="hidden" id="position" value="${escapeHtml(currentImage.position)}" />
                     <input type="text" id="caption" name="caption" required 
                            placeholder="${escapeHtml(currentImage.caption)}" />
                 </div>
-                <button type="submit" class="btn" id="updateCaptionBtn" onclick="updateCaption()">Upload Caption</button>
+                <button type="button" value="Update" class="btn" id="updateCaptionBtn">Update</button>
             </form>
     `
 
-
-    
     const thumbnailsHTML = state.images.length > 1 ? `
         <div class="thumbnails">
             ${state.images.map((img, index) => `
@@ -223,6 +222,10 @@ function render() {
             ${thumbnailsHTML}
         </div>
     `;
+
+    if (is_admin) {
+        document.getElementById('updateCaptionBtn').addEventListener('click', doUpdateCaption);
+    }
 }
 
 /**
@@ -372,3 +375,61 @@ document.addEventListener('DOMContentLoaded', () => {
 window.addEventListener('beforeunload', () => {
     stopAutoPlay();
 });
+
+
+async function doUpdateCaption() {
+    const caption = document.getElementById("caption").value;
+    const position = document.getElementById("position").value;
+    const key = document.getElementById("imageKey").value;    
+    await updateS3Metadata(key, { "caption" : caption, "position": position  })
+}
+
+
+async function updateS3Metadata(objectKey, metadata) {
+
+    if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata) || metadata === null) {
+        showMessage('Metadata must be a valid object.', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${CONFIG.apiEndpoint}/update-metadata`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`
+            },
+            body: JSON.stringify({
+                bucket_name: BUCKET_NAME,
+                object_key: objectKey,
+                metadata: metadata
+            })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            showMessage(`Successfully updated metadata for ${objectKey}`, 'success');
+            return result;
+        } else {
+            showMessage(`Failed to update metadata: ${result.error}`, 'error');
+            return null;
+        }
+    } catch (error) {
+        console.error('Update metadata error:', error);
+        showMessage(`Error updating metadata: ${error.message}`, 'error');
+        return null;
+    }
+}
+
+function showMessage(text, type) {
+    const messageDiv = document.getElementById('messageDiv');
+    messageDiv.textContent = text;
+    messageDiv.className = `message ${type}`;
+    messageDiv.style.display = 'block';
+    
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+        messageDiv.style.display = 'none';
+    }, 5000);
+}
