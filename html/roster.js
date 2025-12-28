@@ -358,7 +358,15 @@ function setupDragAndDrop() {
     const thumbnails = document.querySelectorAll('.thumbnail');
     
     thumbnails.forEach(thumbnail => {
-        // Drag events
+        // Remove existing listeners to prevent duplicates
+        thumbnail.removeEventListener('dragstart', handleDragStart);
+        thumbnail.removeEventListener('dragend', handleDragEnd);
+        thumbnail.removeEventListener('dragover', handleDragOver);
+        thumbnail.removeEventListener('drop', handleDrop);
+        thumbnail.removeEventListener('dragleave', handleDragLeave);
+        thumbnail.removeEventListener('keydown', handleKeyboardNavigation);
+        
+        // Add drag events
         thumbnail.addEventListener('dragstart', handleDragStart);
         thumbnail.addEventListener('dragend', handleDragEnd);
         thumbnail.addEventListener('dragover', handleDragOver);
@@ -437,14 +445,9 @@ function handleDrop(e) {
         // Save original images for comparison
         const originalImages = [...state.images];
         
-        // Reorder the images array
-        const draggedImage = state.images[dragState.draggedIndex];
+        // Reorder the images array efficiently
         const newImages = [...state.images];
-        
-        // Remove the dragged item
-        newImages.splice(dragState.draggedIndex, 1);
-        
-        // Insert at new position
+        const [draggedImage] = newImages.splice(dragState.draggedIndex, 1);
         newImages.splice(dropIndex, 0, draggedImage);
         
         // Update positions based on new order
@@ -481,11 +484,16 @@ function handleDrop(e) {
  */
 async function updateImagePositions(newImages, originalImages) {
     try {
+        // Create a Map for O(1) lookups instead of O(n) find operations
+        const originalPositionMap = new Map(
+            originalImages.map(img => [img.key, img.position])
+        );
+        
         // Only update the images whose positions actually changed
         const updatePromises = newImages
             .map((img, index) => {
-                const originalImg = originalImages.find(orig => orig.key === img.key);
-                if (originalImg && originalImg.position !== index) {
+                const originalPosition = originalPositionMap.get(img.key);
+                if (originalPosition !== undefined && originalPosition !== index) {
                     return updateS3Metadata(img.key, { 
                         caption: img.caption, 
                         position: index 
