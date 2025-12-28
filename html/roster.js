@@ -179,6 +179,15 @@ function render() {
             </form>
     `
 
+    const saveOrderButton = is_admin && state.hasUnsavedChanges ? `
+        <button 
+            onclick="window.saveOrder()" 
+            class="nav-button save-order-btn" 
+            ${state.isSaving ? 'disabled' : ''}>
+            ${state.isSaving ? '⏳ Saving...' : '💾 Save Order'}
+        </button>
+    ` : '';
+
     const thumbnailsHTML = state.images.length > 1 ? `
         <div class="thumbnails">
             ${state.images.map((img, index) => `
@@ -222,6 +231,7 @@ function render() {
                 <button onclick="window.nextImage()" class="nav-button" ${state.images.length <= 1 ? 'disabled' : ''}>
                     Next →
                 </button>
+                ${saveOrderButton}
             </div>
 
             ${thumbnailsHTML}
@@ -257,6 +267,8 @@ const state = {
     error: null,
     isAutoPlaying: false,
     autoPlayInterval: null,
+    hasUnsavedChanges: false,
+    isSaving: false,
 };
 
 /**
@@ -442,9 +454,6 @@ function handleDrop(e) {
     const dropIndex = parseInt(e.currentTarget.dataset.index);
     
     if (dragState.draggedIndex !== dropIndex) {
-        // Save original images for comparison
-        const originalImages = [...state.images];
-        
         // Reorder the images array efficiently
         const newImages = [...state.images];
         const [draggedImage] = newImages.splice(dragState.draggedIndex, 1);
@@ -457,6 +466,7 @@ function handleDrop(e) {
         
         // Update state
         state.images = newImages;
+        state.hasUnsavedChanges = true;
         
         // Update current index if the current image was moved
         if (state.currentIndex === dragState.draggedIndex) {
@@ -469,47 +479,48 @@ function handleDrop(e) {
         
         // Re-render
         render();
-        
-        // Update metadata in S3 for the moved images
-        updateImagePositions(newImages, originalImages);
     }
     
     return false;
 }
 
 /**
- * Update image positions in S3 metadata
- * @param {Array} newImages - Array of image objects with updated positions
- * @param {Array} originalImages - Array of image objects with original positions
+ * Save the current order of images to S3
  */
-async function updateImagePositions(newImages, originalImages) {
+async function saveOrder() {
+    if (!state.hasUnsavedChanges || state.isSaving) {
+        return;
+    }
+    
     try {
-        // Create a Map for O(1) lookups instead of O(n) find operations
-        const originalPositionMap = new Map(
-            originalImages.map(img => [img.key, img.position])
-        );
+        state.isSaving = true;
+        render();
         
-        // Only update the images whose positions actually changed
-        const updatePromises = newImages
-            .map((img, index) => {
-                const originalPosition = originalPositionMap.get(img.key);
-                if (originalPosition !== undefined && originalPosition !== index) {
-                    return updateS3Metadata(img.key, { 
-                        caption: img.caption, 
-                        position: index 
-                    });
-                }
-                return null;
-            })
-            .filter(promise => promise !== null);
+        // Update all images with their current positions
+        const updatePromises = state.images.map((img, index) => {
+            return updateS3Metadata(img.key, { 
+                "caption": img.caption, 
+                "position": index.toString()
+            });
+        });
         
-        if (updatePromises.length > 0) {
-            await Promise.all(updatePromises);
-            showMessage(`Updated ${updatePromises.length} image position(s) successfully`, 'success');
+        const results = await Promise.all(updatePromises);
+        
+        // Check if all updates were successful
+        const failedUpdates = results.filter(result => result === null);
+        
+        if (failedUpdates.length === 0) {
+            state.hasUnsavedChanges = false;
+            showMessage(`Successfully saved order for ${results.length} image(s)`, 'success');
+        } else {
+            showMessage(`Saved ${results.length - failedUpdates.length} of ${results.length} images. Some updates failed.`, 'error');
         }
     } catch (error) {
-        console.error('Error updating image positions:', error);
-        showMessage('Failed to update image positions in S3', 'error');
+        console.error('Error saving order:', error);
+        showMessage(`Failed to save order: ${error.message}`, 'error');
+    } finally {
+        state.isSaving = false;
+        render();
     }
 }
 
@@ -588,9 +599,6 @@ function handleKeyboardNavigation(e) {
  * @param {number} index2 - Second image index
  */
 function swapImages(index1, index2) {
-    // Save original images for comparison
-    const originalImages = [...state.images];
-    
     const newImages = [...state.images];
     const temp = newImages[index1];
     newImages[index1] = newImages[index2];
@@ -603,6 +611,7 @@ function swapImages(index1, index2) {
     
     // Update state
     state.images = newImages;
+    state.hasUnsavedChanges = true;
     
     // Update current index if needed
     if (state.currentIndex === index1) {
@@ -612,7 +621,6 @@ function swapImages(index1, index2) {
     }
     
     render();
-    updateImagePositions(newImages, originalImages);
 }
 
 // Expose functions to global scope for inline event handlers
@@ -647,6 +655,9 @@ window.toggleAutoPlay = () => {
 
 window.retryFetch = retryFetch;
 window.handleImageError = handleImageError;
+window.saveOrder = () => {
+    saveOrder();
+};
 
 // Initialize application
 document.addEventListener('DOMContentLoaded', () => {
@@ -682,9 +693,9 @@ async function updateS3Metadata(objectKey, metadata) {
                 'Authorization': `Bearer ${accessToken}`
             },
             body: JSON.stringify({
-                bucket_name: BUCKET_NAME,
-                object_key: objectKey,
-                metadata: metadata
+                "bucket_name": BUCKET_NAME,
+                "object_key": objectKey,
+                "metadata": metadata
             })
         });
 
