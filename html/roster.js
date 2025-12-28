@@ -174,7 +174,7 @@ function render() {
                     <input type="text" id="caption" name="caption" required 
                            placeholder="${escapeHtml(currentImage.caption)}" />
                 </div>
-                <button type="submit" class="btn" id="updateCaptionBtn">Upload Caption</button>
+                <button type="submit" class="btn" id="updateCaptionBtn" onclick="updateCaption()">Upload Caption</button>
             </form>
     `
 
