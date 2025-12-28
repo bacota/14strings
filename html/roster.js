@@ -187,6 +187,11 @@ function render() {
     style="background-image: url('${escapeHtml(img.url)}')"
     title="${escapeHtml(img.caption)}"
     onclick="window.goToImage(${index})"
+    draggable="true"
+    data-index="${index}"
+    tabindex="0"
+    role="button"
+    aria-label="Thumbnail ${index + 1}: ${escapeHtml(img.caption)}"
         ></div>
         `).join('')}
         </div>
@@ -225,6 +230,11 @@ function render() {
 
     if (is_admin) {
         document.getElementById('updateCaptionBtn').addEventListener('click', doUpdateCaption);
+    }
+
+    // Add drag-and-drop event listeners to thumbnails
+    if (is_admin && state.images.length > 1) {
+        setupDragAndDrop();
     }
 }
 
@@ -331,6 +341,278 @@ async function loadImages() {
  */
 function retryFetch() {
     loadImages();
+}
+
+/**
+ * Drag and Drop State
+ */
+let dragState = {
+    draggedIndex: null,
+    draggedElement: null
+};
+
+/**
+ * Setup drag and drop event listeners for thumbnails
+ */
+function setupDragAndDrop() {
+    const thumbnails = document.querySelectorAll('.thumbnail');
+    
+    thumbnails.forEach(thumbnail => {
+        // Remove existing listeners to prevent duplicates
+        thumbnail.removeEventListener('dragstart', handleDragStart);
+        thumbnail.removeEventListener('dragend', handleDragEnd);
+        thumbnail.removeEventListener('dragover', handleDragOver);
+        thumbnail.removeEventListener('drop', handleDrop);
+        thumbnail.removeEventListener('dragleave', handleDragLeave);
+        thumbnail.removeEventListener('keydown', handleKeyboardNavigation);
+        
+        // Add drag events
+        thumbnail.addEventListener('dragstart', handleDragStart);
+        thumbnail.addEventListener('dragend', handleDragEnd);
+        thumbnail.addEventListener('dragover', handleDragOver);
+        thumbnail.addEventListener('drop', handleDrop);
+        thumbnail.addEventListener('dragleave', handleDragLeave);
+        
+        // Keyboard navigation for accessibility
+        thumbnail.addEventListener('keydown', handleKeyboardNavigation);
+    });
+}
+
+/**
+ * Handle drag start event
+ * @param {DragEvent} e - Drag event
+ */
+function handleDragStart(e) {
+    dragState.draggedIndex = parseInt(e.currentTarget.dataset.index);
+    dragState.draggedElement = e.currentTarget;
+    e.currentTarget.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', e.currentTarget.innerHTML);
+}
+
+/**
+ * Handle drag end event
+ * @param {DragEvent} e - Drag event
+ */
+function handleDragEnd(e) {
+    e.currentTarget.classList.remove('dragging');
+    // Remove all drag-over classes
+    document.querySelectorAll('.thumbnail').forEach(thumb => {
+        thumb.classList.remove('drag-over');
+    });
+}
+
+/**
+ * Handle drag over event
+ * @param {DragEvent} e - Drag event
+ */
+function handleDragOver(e) {
+    if (e.preventDefault) {
+        e.preventDefault();
+    }
+    e.dataTransfer.dropEffect = 'move';
+    
+    const currentElement = e.currentTarget;
+    if (currentElement !== dragState.draggedElement) {
+        currentElement.classList.add('drag-over');
+    }
+    
+    return false;
+}
+
+/**
+ * Handle drag leave event
+ * @param {DragEvent} e - Drag event
+ */
+function handleDragLeave(e) {
+    e.currentTarget.classList.remove('drag-over');
+}
+
+/**
+ * Handle drop event
+ * @param {DragEvent} e - Drag event
+ */
+function handleDrop(e) {
+    if (e.stopPropagation) {
+        e.stopPropagation();
+    }
+    
+    e.currentTarget.classList.remove('drag-over');
+    
+    const dropIndex = parseInt(e.currentTarget.dataset.index);
+    
+    if (dragState.draggedIndex !== dropIndex) {
+        // Save original images for comparison
+        const originalImages = [...state.images];
+        
+        // Reorder the images array efficiently
+        const newImages = [...state.images];
+        const [draggedImage] = newImages.splice(dragState.draggedIndex, 1);
+        newImages.splice(dropIndex, 0, draggedImage);
+        
+        // Update positions based on new order
+        newImages.forEach((img, index) => {
+            img.position = index;
+        });
+        
+        // Update state
+        state.images = newImages;
+        
+        // Update current index if the current image was moved
+        if (state.currentIndex === dragState.draggedIndex) {
+            state.currentIndex = dropIndex;
+        } else if (dragState.draggedIndex < state.currentIndex && dropIndex >= state.currentIndex) {
+            state.currentIndex--;
+        } else if (dragState.draggedIndex > state.currentIndex && dropIndex <= state.currentIndex) {
+            state.currentIndex++;
+        }
+        
+        // Re-render
+        render();
+        
+        // Update metadata in S3 for the moved images
+        updateImagePositions(newImages, originalImages);
+    }
+    
+    return false;
+}
+
+/**
+ * Update image positions in S3 metadata
+ * @param {Array} newImages - Array of image objects with updated positions
+ * @param {Array} originalImages - Array of image objects with original positions
+ */
+async function updateImagePositions(newImages, originalImages) {
+    try {
+        // Create a Map for O(1) lookups instead of O(n) find operations
+        const originalPositionMap = new Map(
+            originalImages.map(img => [img.key, img.position])
+        );
+        
+        // Only update the images whose positions actually changed
+        const updatePromises = newImages
+            .map((img, index) => {
+                const originalPosition = originalPositionMap.get(img.key);
+                if (originalPosition !== undefined && originalPosition !== index) {
+                    return updateS3Metadata(img.key, { 
+                        caption: img.caption, 
+                        position: index 
+                    });
+                }
+                return null;
+            })
+            .filter(promise => promise !== null);
+        
+        if (updatePromises.length > 0) {
+            await Promise.all(updatePromises);
+            showMessage(`Updated ${updatePromises.length} image position(s) successfully`, 'success');
+        }
+    } catch (error) {
+        console.error('Error updating image positions:', error);
+        showMessage('Failed to update image positions in S3', 'error');
+    }
+}
+
+/**
+ * Focus a thumbnail by index after render completes
+ * @param {number} index - Thumbnail index to focus
+ */
+function focusThumbnail(index) {
+    // Use requestAnimationFrame to ensure DOM has updated after render
+    requestAnimationFrame(() => {
+        const thumbnails = document.querySelectorAll('.thumbnail');
+        if (thumbnails[index]) {
+            thumbnails[index].focus();
+        }
+    });
+}
+
+/**
+ * Handle keyboard navigation for accessibility
+ * @param {KeyboardEvent} e - Keyboard event
+ */
+function handleKeyboardNavigation(e) {
+    const currentIndex = parseInt(e.currentTarget.dataset.index);
+    const thumbnails = Array.from(document.querySelectorAll('.thumbnail'));
+    
+    switch (e.key) {
+        case 'Enter':
+        case ' ':
+            e.preventDefault();
+            window.goToImage(currentIndex);
+            break;
+            
+        case 'ArrowLeft':
+        case 'ArrowUp':
+            e.preventDefault();
+            if (e.altKey && currentIndex > 0) {
+                // Alt+Arrow to reorder (swapImages calls render internally)
+                swapImages(currentIndex, currentIndex - 1);
+                // Restore focus after DOM updates
+                focusThumbnail(currentIndex - 1);
+            } else if (currentIndex > 0) {
+                // Regular arrow to navigate
+                thumbnails[currentIndex - 1].focus();
+            }
+            break;
+            
+        case 'ArrowRight':
+        case 'ArrowDown':
+            e.preventDefault();
+            if (e.altKey && currentIndex < thumbnails.length - 1) {
+                // Alt+Arrow to reorder (swapImages calls render internally)
+                swapImages(currentIndex, currentIndex + 1);
+                // Restore focus after DOM updates
+                focusThumbnail(currentIndex + 1);
+            } else if (currentIndex < thumbnails.length - 1) {
+                // Regular arrow to navigate
+                thumbnails[currentIndex + 1].focus();
+            }
+            break;
+            
+        case 'Home':
+            e.preventDefault();
+            thumbnails[0].focus();
+            break;
+            
+        case 'End':
+            e.preventDefault();
+            thumbnails[thumbnails.length - 1].focus();
+            break;
+    }
+}
+
+/**
+ * Swap two images in the array
+ * @param {number} index1 - First image index
+ * @param {number} index2 - Second image index
+ */
+function swapImages(index1, index2) {
+    // Save original images for comparison
+    const originalImages = [...state.images];
+    
+    const newImages = [...state.images];
+    const temp = newImages[index1];
+    newImages[index1] = newImages[index2];
+    newImages[index2] = temp;
+    
+    // Update positions
+    newImages.forEach((img, index) => {
+        img.position = index;
+    });
+    
+    // Update state
+    state.images = newImages;
+    
+    // Update current index if needed
+    if (state.currentIndex === index1) {
+        state.currentIndex = index2;
+    } else if (state.currentIndex === index2) {
+        state.currentIndex = index1;
+    }
+    
+    render();
+    updateImagePositions(newImages, originalImages);
 }
 
 // Expose functions to global scope for inline event handlers

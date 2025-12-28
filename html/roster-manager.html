@@ -198,7 +198,7 @@
             background-size: cover;
             background-position: center;
             border-radius: 6px;
-            cursor: pointer;
+            cursor: move;
             border: 2px solid transparent;
             transition: all 0.3s ease;
             flex-shrink: 0;
@@ -212,6 +212,37 @@
         .thumbnail.active {
             border-color: #646cff;
             box-shadow: 0 0 10px rgba(100, 108, 255, 0.5);
+        }
+
+        .thumbnail.dragging {
+            opacity: 0.4;
+            cursor: grabbing;
+        }
+
+        .thumbnail.drag-over {
+            border-color: #ffd700;
+            transform: scale(1.1);
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.7);
+        }
+
+        .message {
+            padding: 15px;
+            margin: 10px auto;
+            max-width: 800px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 500;
+            display: none;
+        }
+
+        .message.success {
+            background-color: #4caf50;
+            color: white;
+        }
+
+        .message.error {
+            background-color: #f44336;
+            color: white;
         }
 
         /* Responsive Design */
