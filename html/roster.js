@@ -187,6 +187,11 @@ function render() {
     style="background-image: url('${escapeHtml(img.url)}')"
     title="${escapeHtml(img.caption)}"
     onclick="window.goToImage(${index})"
+    draggable="true"
+    data-index="${index}"
+    tabindex="0"
+    role="button"
+    aria-label="Thumbnail ${index + 1}: ${escapeHtml(img.caption)}"
         ></div>
         `).join('')}
         </div>
@@ -225,6 +230,11 @@ function render() {
 
     if (is_admin) {
         document.getElementById('updateCaptionBtn').addEventListener('click', doUpdateCaption);
+    }
+
+    // Add drag-and-drop event listeners to thumbnails
+    if (is_admin && state.images.length > 1) {
+        setupDragAndDrop();
     }
 }
 
@@ -331,6 +341,255 @@ async function loadImages() {
  */
 function retryFetch() {
     loadImages();
+}
+
+/**
+ * Drag and Drop State
+ */
+let dragState = {
+    draggedIndex: null,
+    draggedElement: null
+};
+
+/**
+ * Setup drag and drop event listeners for thumbnails
+ */
+function setupDragAndDrop() {
+    const thumbnails = document.querySelectorAll('.thumbnail');
+    
+    thumbnails.forEach(thumbnail => {
+        // Drag events
+        thumbnail.addEventListener('dragstart', handleDragStart);
+        thumbnail.addEventListener('dragend', handleDragEnd);
+        thumbnail.addEventListener('dragover', handleDragOver);
+        thumbnail.addEventListener('drop', handleDrop);
+        thumbnail.addEventListener('dragleave', handleDragLeave);
+        
+        // Keyboard navigation for accessibility
+        thumbnail.addEventListener('keydown', handleKeyboardNavigation);
+    });
+}
+
+/**
+ * Handle drag start event
+ * @param {DragEvent} e - Drag event
+ */
+function handleDragStart(e) {
+    dragState.draggedIndex = parseInt(e.currentTarget.dataset.index);
+    dragState.draggedElement = e.currentTarget;
+    e.currentTarget.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', e.currentTarget.innerHTML);
+}
+
+/**
+ * Handle drag end event
+ * @param {DragEvent} e - Drag event
+ */
+function handleDragEnd(e) {
+    e.currentTarget.classList.remove('dragging');
+    // Remove all drag-over classes
+    document.querySelectorAll('.thumbnail').forEach(thumb => {
+        thumb.classList.remove('drag-over');
+    });
+}
+
+/**
+ * Handle drag over event
+ * @param {DragEvent} e - Drag event
+ */
+function handleDragOver(e) {
+    if (e.preventDefault) {
+        e.preventDefault();
+    }
+    e.dataTransfer.dropEffect = 'move';
+    
+    const currentElement = e.currentTarget;
+    if (currentElement !== dragState.draggedElement) {
+        currentElement.classList.add('drag-over');
+    }
+    
+    return false;
+}
+
+/**
+ * Handle drag leave event
+ * @param {DragEvent} e - Drag event
+ */
+function handleDragLeave(e) {
+    e.currentTarget.classList.remove('drag-over');
+}
+
+/**
+ * Handle drop event
+ * @param {DragEvent} e - Drag event
+ */
+function handleDrop(e) {
+    if (e.stopPropagation) {
+        e.stopPropagation();
+    }
+    
+    e.currentTarget.classList.remove('drag-over');
+    
+    const dropIndex = parseInt(e.currentTarget.dataset.index);
+    
+    if (dragState.draggedIndex !== dropIndex) {
+        // Reorder the images array
+        const draggedImage = state.images[dragState.draggedIndex];
+        const newImages = [...state.images];
+        
+        // Remove the dragged item
+        newImages.splice(dragState.draggedIndex, 1);
+        
+        // Insert at new position
+        newImages.splice(dropIndex, 0, draggedImage);
+        
+        // Update positions based on new order
+        newImages.forEach((img, index) => {
+            img.position = index;
+        });
+        
+        // Update state
+        state.images = newImages;
+        
+        // Update current index if the current image was moved
+        if (state.currentIndex === dragState.draggedIndex) {
+            state.currentIndex = dropIndex;
+        } else if (dragState.draggedIndex < state.currentIndex && dropIndex >= state.currentIndex) {
+            state.currentIndex--;
+        } else if (dragState.draggedIndex > state.currentIndex && dropIndex <= state.currentIndex) {
+            state.currentIndex++;
+        }
+        
+        // Re-render
+        render();
+        
+        // Update metadata in S3 for the moved images
+        updateImagePositions(newImages);
+    }
+    
+    return false;
+}
+
+/**
+ * Update image positions in S3 metadata
+ * @param {Array} images - Array of image objects with updated positions
+ */
+async function updateImagePositions(images) {
+    try {
+        // Only update the images that changed position
+        const updatePromises = images.map((img, index) => {
+            return updateS3Metadata(img.key, { 
+                caption: img.caption, 
+                position: index 
+            });
+        });
+        
+        await Promise.all(updatePromises);
+        showMessage('Image order updated successfully', 'success');
+    } catch (error) {
+        console.error('Error updating image positions:', error);
+        showMessage('Failed to update image positions in S3', 'error');
+    }
+}
+
+/**
+ * Handle keyboard navigation for accessibility
+ * @param {KeyboardEvent} e - Keyboard event
+ */
+function handleKeyboardNavigation(e) {
+    const currentIndex = parseInt(e.currentTarget.dataset.index);
+    const thumbnails = Array.from(document.querySelectorAll('.thumbnail'));
+    
+    switch (e.key) {
+        case 'Enter':
+        case ' ':
+            e.preventDefault();
+            goToImage(currentIndex);
+            render();
+            break;
+            
+        case 'ArrowLeft':
+        case 'ArrowUp':
+            e.preventDefault();
+            if (currentIndex > 0) {
+                thumbnails[currentIndex - 1].focus();
+            }
+            break;
+            
+        case 'ArrowRight':
+        case 'ArrowDown':
+            e.preventDefault();
+            if (currentIndex < thumbnails.length - 1) {
+                thumbnails[currentIndex + 1].focus();
+            }
+            break;
+            
+        case 'Home':
+            e.preventDefault();
+            thumbnails[0].focus();
+            break;
+            
+        case 'End':
+            e.preventDefault();
+            thumbnails[thumbnails.length - 1].focus();
+            break;
+            
+        // Alt+ArrowLeft/Right to reorder
+        case 'ArrowLeft':
+            if (e.altKey && currentIndex > 0) {
+                e.preventDefault();
+                swapImages(currentIndex, currentIndex - 1);
+                // Focus will be updated after render
+                setTimeout(() => {
+                    const newThumbnails = document.querySelectorAll('.thumbnail');
+                    newThumbnails[currentIndex - 1]?.focus();
+                }, 100);
+            }
+            break;
+            
+        case 'ArrowRight':
+            if (e.altKey && currentIndex < thumbnails.length - 1) {
+                e.preventDefault();
+                swapImages(currentIndex, currentIndex + 1);
+                // Focus will be updated after render
+                setTimeout(() => {
+                    const newThumbnails = document.querySelectorAll('.thumbnail');
+                    newThumbnails[currentIndex + 1]?.focus();
+                }, 100);
+            }
+            break;
+    }
+}
+
+/**
+ * Swap two images in the array
+ * @param {number} index1 - First image index
+ * @param {number} index2 - Second image index
+ */
+function swapImages(index1, index2) {
+    const newImages = [...state.images];
+    const temp = newImages[index1];
+    newImages[index1] = newImages[index2];
+    newImages[index2] = temp;
+    
+    // Update positions
+    newImages.forEach((img, index) => {
+        img.position = index;
+    });
+    
+    // Update state
+    state.images = newImages;
+    
+    // Update current index if needed
+    if (state.currentIndex === index1) {
+        state.currentIndex = index2;
+    } else if (state.currentIndex === index2) {
+        state.currentIndex = index1;
+    }
+    
+    render();
+    updateImagePositions(newImages);
 }
 
 // Expose functions to global scope for inline event handlers
