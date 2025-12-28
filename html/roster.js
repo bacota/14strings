@@ -531,17 +531,16 @@ function handleKeyboardNavigation(e) {
         case 'Enter':
         case ' ':
             e.preventDefault();
-            goToImage(currentIndex);
-            render();
+            window.goToImage(currentIndex);
             break;
             
         case 'ArrowLeft':
         case 'ArrowUp':
             e.preventDefault();
             if (e.altKey && currentIndex > 0) {
-                // Alt+Arrow to reorder
+                // Alt+Arrow to reorder (swapImages calls render internally)
                 swapImages(currentIndex, currentIndex - 1);
-                // Focus will be updated after render via focusThumbnail
+                // Restore focus after DOM updates
                 focusThumbnail(currentIndex - 1);
             } else if (currentIndex > 0) {
                 // Regular arrow to navigate
@@ -553,9 +552,9 @@ function handleKeyboardNavigation(e) {
         case 'ArrowDown':
             e.preventDefault();
             if (e.altKey && currentIndex < thumbnails.length - 1) {
-                // Alt+Arrow to reorder
+                // Alt+Arrow to reorder (swapImages calls render internally)
                 swapImages(currentIndex, currentIndex + 1);
-                // Focus will be updated after render via focusThumbnail
+                // Restore focus after DOM updates
                 focusThumbnail(currentIndex + 1);
             } else if (currentIndex < thumbnails.length - 1) {
                 // Regular arrow to navigate
