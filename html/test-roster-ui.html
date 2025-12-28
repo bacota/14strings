@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test - Save Order Button</title>
+    <style>
+        :root {
+            font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+            line-height: 1.5;
+            font-weight: 400;
+            color-scheme: light dark;
+            color: rgba(255, 255, 255, 0.87);
+            background-color: #242424;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-width: 320px;
+            min-height: 100vh;
+        }
+
+        .app-container {
+            width: 100%;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .app-header {
+            text-align: center;
+            padding: 30px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .app-header h1 {
+            margin: 0 0 10px 0;
+            font-size: 2.5em;
+            font-weight: 700;
+        }
+
+        main {
+            flex: 1;
+            padding: 20px;
+        }
+
+        #slideshow-container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .slideshow {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .image-wrapper {
+            width: 100%;
+            height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #1a1a1a;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .slideshow-image {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .nav-button {
+            padding: 10px 20px;
+            background-color: #1a1a1a;
+            color: white;
+            border: 1px solid #646cff;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-button:hover:not(:disabled) {
+            background-color: #646cff;
+            transform: translateY(-2px);
+        }
+
+        .nav-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .save-order-btn {
+            background-color: #4caf50;
+            border-color: #4caf50;
+            font-weight: 600;
+        }
+
+        .save-order-btn:hover:not(:disabled) {
+            background-color: #45a049;
+            border-color: #45a049;
+        }
+
+        .thumbnails {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding: 10px 0;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .thumbnail {
+            width: 80px;
+            height: 60px;
+            background-size: cover;
+            background-position: center;
+            border-radius: 6px;
+            cursor: move;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .thumbnail:hover {
+            border-color: #646cff;
+            transform: scale(1.05);
+        }
+
+        .thumbnail.active {
+            border-color: #646cff;
+            box-shadow: 0 0 10px rgba(100, 108, 255, 0.5);
+        }
+
+        .message {
+            padding: 15px;
+            margin: 10px auto;
+            max-width: 800px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .message.success {
+            background-color: #4caf50;
+            color: white;
+        }
+
+        .message.error {
+            background-color: #f44336;
+            color: white;
+        }
+
+        .caption-wrapper {
+            text-align: center;
+            padding: 10px;
+        }
+
+        .caption {
+            font-size: 18px;
+            font-weight: 500;
+            margin: 0 0 5px 0;
+            color: rgba(255, 255, 255, 0.87);
+        }
+
+        .info-box {
+            background: #333;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px auto;
+            max-width: 800px;
+        }
+
+        .info-box h3 {
+            color: #4caf50;
+            margin-top: 0;
+        }
+
+        .info-box ul {
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <h1>Save Order Button Demo</h1>
+        </header>
+        
+        <main>
+            <div class="info-box">
+                <h3>✨ New Feature: Save Order Button</h3>
+                <ul>
+                    <li><strong>Drag and Drop:</strong> Images can be reordered by dragging thumbnails</li>
+                    <li><strong>Deferred Save:</strong> Changes are tracked but NOT automatically saved</li>
+                    <li><strong>Save Order Button:</strong> Appears when there are unsaved changes</li>
+                    <li><strong>Batch Update:</strong> Clicking the button saves all position changes at once</li>
+                    <li><strong>Visual Feedback:</strong> Shows loading state and success/error messages</li>
+                    <li><strong>Green Styling:</strong> Save button is prominently styled in green</li>
+                </ul>
+            </div>
+
+            <div id="slideshow-container">
+                <div class="slideshow">
+                    <div class="image-wrapper">
+                        <img 
+                            src="https://via.placeholder.com/800x400/667eea/ffffff?text=Sample+Image+1" 
+                            alt="Sample Image"
+                            class="slideshow-image"
+                        />
+                    </div>
+
+                    <div class="caption-wrapper">
+                        <p class="caption">Sample Image 1</p>
+                    </div>
+
+                    <div class="controls">
+                        <button class="nav-button">
+                            ← Previous
+                        </button>
+                        <button class="nav-button">
+                            ▶ Play
+                        </button>
+                        <button class="nav-button">
+                            Next →
+                        </button>
+                        <!-- This button appears when there are unsaved changes -->
+                        <button class="nav-button save-order-btn">
+                            💾 Save Order
+                        </button>
+                    </div>
+
+                    <div class="thumbnails">
+                        <div class="thumbnail active" style="background-image: url('https://via.placeholder.com/80x60/667eea/ffffff?text=1')"></div>
+                        <div class="thumbnail" style="background-image: url('https://via.placeholder.com/80x60/764ba2/ffffff?text=2')"></div>
+                        <div class="thumbnail" style="background-image: url('https://via.placeholder.com/80x60/f093fb/ffffff?text=3')"></div>
+                        <div class="thumbnail" style="background-image: url('https://via.placeholder.com/80x60/4facfe/ffffff?text=4')"></div>
+                    </div>
+
+                    <div class="message success" style="display: block; margin-top: 20px;">
+                        ✅ Example: Successfully saved order for 4 image(s)
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

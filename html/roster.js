@@ -525,42 +525,6 @@ async function saveOrder() {
 }
 
 /**
- * Update image positions in S3 metadata
- * @param {Array} newImages - Array of image objects with updated positions
- * @param {Array} originalImages - Array of image objects with original positions
- */
-async function updateImagePositions(newImages, originalImages) {
-    try {
-        // Create a Map for O(1) lookups instead of O(n) find operations
-        const originalPositionMap = new Map(
-            originalImages.map(img => [img.key, img.position])
-        );
-        
-        // Only update the images whose positions actually changed
-        const updatePromises = newImages
-            .map((img, index) => {
-                const originalPosition = originalPositionMap.get(img.key);
-                if (originalPosition !== undefined && originalPosition !== index) {
-                    return updateS3Metadata(img.key, { 
-                        caption: img.caption, 
-                        position: index 
-                    });
-                }
-                return null;
-            })
-            .filter(promise => promise !== null);
-        
-        if (updatePromises.length > 0) {
-            await Promise.all(updatePromises);
-            showMessage(`Updated ${updatePromises.length} image position(s) successfully`, 'success');
-        }
-    } catch (error) {
-        console.error('Error updating image positions:', error);
-        showMessage('Failed to update image positions in S3', 'error');
-    }
-}
-
-/**
  * Focus a thumbnail by index after render completes
  * @param {number} index - Thumbnail index to focus
  */
