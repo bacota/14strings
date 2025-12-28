@@ -499,8 +499,8 @@ async function saveOrder() {
         // Update all images with their current positions
         const updatePromises = state.images.map((img, index) => {
             return updateS3Metadata(img.key, { 
-                caption: img.caption, 
-                position: index 
+                "caption": img.caption, 
+                "position": index.toString()
             });
         });
         
@@ -693,9 +693,9 @@ async function updateS3Metadata(objectKey, metadata) {
                 'Authorization': `Bearer ${accessToken}`
             },
             body: JSON.stringify({
-                bucket_name: BUCKET_NAME,
-                object_key: objectKey,
-                metadata: metadata
+                "bucket_name": BUCKET_NAME,
+                "object_key": objectKey,
+                "metadata": metadata
             })
         });
 
