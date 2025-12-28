@@ -179,6 +179,15 @@ function render() {
             </form>
     `
 
+    const saveOrderButton = is_admin && state.hasUnsavedChanges ? `
+        <button 
+            onclick="window.saveOrder()" 
+            class="nav-button save-order-btn" 
+            ${state.isSaving ? 'disabled' : ''}>
+            ${state.isSaving ? '⏳ Saving...' : '💾 Save Order'}
+        </button>
+    ` : '';
+
     const thumbnailsHTML = state.images.length > 1 ? `
         <div class="thumbnails">
             ${state.images.map((img, index) => `
@@ -222,6 +231,7 @@ function render() {
                 <button onclick="window.nextImage()" class="nav-button" ${state.images.length <= 1 ? 'disabled' : ''}>
                     Next →
                 </button>
+                ${saveOrderButton}
             </div>
 
             ${thumbnailsHTML}
@@ -257,6 +267,8 @@ const state = {
     error: null,
     isAutoPlaying: false,
     autoPlayInterval: null,
+    hasUnsavedChanges: false,
+    isSaving: false,
 };
 
 /**
@@ -442,9 +454,6 @@ function handleDrop(e) {
     const dropIndex = parseInt(e.currentTarget.dataset.index);
     
     if (dragState.draggedIndex !== dropIndex) {
-        // Save original images for comparison
-        const originalImages = [...state.images];
-        
         // Reorder the images array efficiently
         const newImages = [...state.images];
         const [draggedImage] = newImages.splice(dragState.draggedIndex, 1);
@@ -457,6 +466,7 @@ function handleDrop(e) {
         
         // Update state
         state.images = newImages;
+        state.hasUnsavedChanges = true;
         
         // Update current index if the current image was moved
         if (state.currentIndex === dragState.draggedIndex) {
@@ -469,12 +479,49 @@ function handleDrop(e) {
         
         // Re-render
         render();
-        
-        // Update metadata in S3 for the moved images
-        updateImagePositions(newImages, originalImages);
     }
     
     return false;
+}
+
+/**
+ * Save the current order of images to S3
+ */
+async function saveOrder() {
+    if (!state.hasUnsavedChanges || state.isSaving) {
+        return;
+    }
+    
+    try {
+        state.isSaving = true;
+        render();
+        
+        // Update all images with their current positions
+        const updatePromises = state.images.map((img, index) => {
+            return updateS3Metadata(img.key, { 
+                caption: img.caption, 
+                position: index 
+            });
+        });
+        
+        const results = await Promise.all(updatePromises);
+        
+        // Check if all updates were successful
+        const failedUpdates = results.filter(result => result === null);
+        
+        if (failedUpdates.length === 0) {
+            state.hasUnsavedChanges = false;
+            showMessage(`Successfully saved order for ${results.length} image(s)`, 'success');
+        } else {
+            showMessage(`Saved ${results.length - failedUpdates.length} of ${results.length} images. Some updates failed.`, 'error');
+        }
+    } catch (error) {
+        console.error('Error saving order:', error);
+        showMessage(`Failed to save order: ${error.message}`, 'error');
+    } finally {
+        state.isSaving = false;
+        render();
+    }
 }
 
 /**
@@ -588,9 +635,6 @@ function handleKeyboardNavigation(e) {
  * @param {number} index2 - Second image index
  */
 function swapImages(index1, index2) {
-    // Save original images for comparison
-    const originalImages = [...state.images];
-    
     const newImages = [...state.images];
     const temp = newImages[index1];
     newImages[index1] = newImages[index2];
@@ -603,6 +647,7 @@ function swapImages(index1, index2) {
     
     // Update state
     state.images = newImages;
+    state.hasUnsavedChanges = true;
     
     // Update current index if needed
     if (state.currentIndex === index1) {
@@ -612,7 +657,6 @@ function swapImages(index1, index2) {
     }
     
     render();
-    updateImagePositions(newImages, originalImages);
 }
 
 // Expose functions to global scope for inline event handlers
@@ -647,6 +691,9 @@ window.toggleAutoPlay = () => {
 
 window.retryFetch = retryFetch;
 window.handleImageError = handleImageError;
+window.saveOrder = () => {
+    saveOrder();
+};
 
 // Initialize application
 document.addEventListener('DOMContentLoaded', () => {
