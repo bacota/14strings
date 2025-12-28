@@ -36,10 +36,54 @@ resource "aws_s3_object" "roster_admin_html" {
   content      = data.template_file.roster_admin_template.rendered
 }
 
+data "template_file" "roster_template" {
+  template = file("${path.module}/html/roster.html")
+  vars = {
+    api_endpoint   = "${aws_apigatewayv2_api.main.api_endpoint}/prod"
+    cognito_domain = aws_cognito_user_pool_domain.main.domain
+    client_id      = aws_cognito_user_pool_client.main.id
+    redirect_uri   = "https://14strings.com/callback.html"
+    aws_region     = var.aws_region
+  }
+}
+
+resource "aws_s3_object" "roster_html" {
+  bucket       = var.web_bucket
+  key          = "roster.html"
+  content_type = "text/html"
+  content      = data.template_file.roster_template.rendered
+}
+
+data "template_file" "roster_manager_template" {
+  template = file("${path.module}/html/roster-manager.html")
+  vars = {
+    api_endpoint   = "${aws_apigatewayv2_api.main.api_endpoint}/prod"
+    cognito_domain = aws_cognito_user_pool_domain.main.domain
+    client_id      = aws_cognito_user_pool_client.main.id
+    redirect_uri   = "https://14strings.com/callback.html"
+    aws_region     = var.aws_region
+  }
+}
+
+resource "aws_s3_object" "roster_manager_html" {
+  bucket       = var.web_bucket
+  key          = "roster-manager.html"
+  content_type = "text/html"
+  content      = data.template_file.roster_manager_template.rendered
+}
+
 resource "aws_s3_object" "admin_js" {
   bucket       = var.web_bucket
   source       = "${path.module}/html/admin.js"
   key          = "admin.js"
+  content_type = "text/javascript"
+  etag         = filemd5("${path.module}/html/admin.js")
+}
+
+resource "aws_s3_object" "roster_js" {
+  bucket       = var.web_bucket
+  source       = "${path.module}/html/roster.js"
+  key          = "roster.js"
   content_type = "text/javascript"
   etag         = filemd5("${path.module}/html/admin.js")
 }

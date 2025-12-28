@@ -59,13 +59,11 @@ async function fetchObjectMetadata(url) {
         const metadata = {"caption" : "", "position" : 100000 };
 
         response.headers.forEach( (value, key) => {
-            console.log(key + "=" + value)
             if (key.toLowerCase() == "x-amz-meta-position")
                 metadata.position = parseInt(value)
             if (key.toLowerCase() == "x-amz-meta-caption")
                 metadata.caption = value
         });
-        console.log(metadata)
         return metadata;
     } catch (error) {
         console.warn(`Failed to fetch metadata for ${url}:`, error.message);
@@ -168,6 +166,20 @@ function render() {
     }
 
     const currentImage = state.images[state.currentIndex];
+
+    const updateCaption = !is_admin ? `<p class="caption">${escapeHtml(currentImage.caption)}</p> ` : `
+        <form id="updateCaption">
+              <input type="hidden" name="key" id="key" value="${escapeHtml(currentImage.key)}"/>
+                <div class="form-group">
+                    <input type="text" id="caption" name="caption" required 
+                           placeholder="${escapeHtml(currentImage.caption)}" />
+                </div>
+                <button type="submit" class="btn" id="updateCaptionBtn" onclick="updateCaption()">Upload Caption</button>
+            </form>
+    `
+
+
+    
     const thumbnailsHTML = state.images.length > 1 ? `
         <div class="thumbnails">
             ${state.images.map((img, index) => `
@@ -193,7 +205,7 @@ function render() {
             </div>
 
             <div class="caption-wrapper">
-                <p class="caption">${escapeHtml(currentImage.caption)}</p>
+                  ${updateCaption}
             </div>
 
             <div class="controls">
