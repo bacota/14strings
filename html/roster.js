@@ -434,6 +434,9 @@ function handleDrop(e) {
     const dropIndex = parseInt(e.currentTarget.dataset.index);
     
     if (dragState.draggedIndex !== dropIndex) {
+        // Save original images for comparison
+        const originalImages = [...state.images];
+        
         // Reorder the images array
         const draggedImage = state.images[dragState.draggedIndex];
         const newImages = [...state.images];
@@ -465,7 +468,7 @@ function handleDrop(e) {
         render();
         
         // Update metadata in S3 for the moved images
-        updateImagePositions(newImages);
+        updateImagePositions(newImages, originalImages);
     }
     
     return false;
@@ -473,24 +476,47 @@ function handleDrop(e) {
 
 /**
  * Update image positions in S3 metadata
- * @param {Array} images - Array of image objects with updated positions
+ * @param {Array} newImages - Array of image objects with updated positions
+ * @param {Array} originalImages - Array of image objects with original positions
  */
-async function updateImagePositions(images) {
+async function updateImagePositions(newImages, originalImages) {
     try {
-        // Only update the images that changed position
-        const updatePromises = images.map((img, index) => {
-            return updateS3Metadata(img.key, { 
-                caption: img.caption, 
-                position: index 
-            });
-        });
+        // Only update the images whose positions actually changed
+        const updatePromises = newImages
+            .map((img, index) => {
+                const originalImg = originalImages.find(orig => orig.key === img.key);
+                if (originalImg && originalImg.position !== index) {
+                    return updateS3Metadata(img.key, { 
+                        caption: img.caption, 
+                        position: index 
+                    });
+                }
+                return null;
+            })
+            .filter(promise => promise !== null);
         
-        await Promise.all(updatePromises);
-        showMessage('Image order updated successfully', 'success');
+        if (updatePromises.length > 0) {
+            await Promise.all(updatePromises);
+            showMessage(`Updated ${updatePromises.length} image position(s) successfully`, 'success');
+        }
     } catch (error) {
         console.error('Error updating image positions:', error);
         showMessage('Failed to update image positions in S3', 'error');
     }
+}
+
+/**
+ * Focus a thumbnail by index after render completes
+ * @param {number} index - Thumbnail index to focus
+ */
+function focusThumbnail(index) {
+    // Use requestAnimationFrame to ensure DOM has updated after render
+    requestAnimationFrame(() => {
+        const thumbnails = document.querySelectorAll('.thumbnail');
+        if (thumbnails[index]) {
+            thumbnails[index].focus();
+        }
+    });
 }
 
 /**
@@ -512,7 +538,13 @@ function handleKeyboardNavigation(e) {
         case 'ArrowLeft':
         case 'ArrowUp':
             e.preventDefault();
-            if (currentIndex > 0) {
+            if (e.altKey && currentIndex > 0) {
+                // Alt+Arrow to reorder
+                swapImages(currentIndex, currentIndex - 1);
+                // Focus will be updated after render via focusThumbnail
+                focusThumbnail(currentIndex - 1);
+            } else if (currentIndex > 0) {
+                // Regular arrow to navigate
                 thumbnails[currentIndex - 1].focus();
             }
             break;
@@ -520,7 +552,13 @@ function handleKeyboardNavigation(e) {
         case 'ArrowRight':
         case 'ArrowDown':
             e.preventDefault();
-            if (currentIndex < thumbnails.length - 1) {
+            if (e.altKey && currentIndex < thumbnails.length - 1) {
+                // Alt+Arrow to reorder
+                swapImages(currentIndex, currentIndex + 1);
+                // Focus will be updated after render via focusThumbnail
+                focusThumbnail(currentIndex + 1);
+            } else if (currentIndex < thumbnails.length - 1) {
+                // Regular arrow to navigate
                 thumbnails[currentIndex + 1].focus();
             }
             break;
@@ -534,31 +572,6 @@ function handleKeyboardNavigation(e) {
             e.preventDefault();
             thumbnails[thumbnails.length - 1].focus();
             break;
-            
-        // Alt+ArrowLeft/Right to reorder
-        case 'ArrowLeft':
-            if (e.altKey && currentIndex > 0) {
-                e.preventDefault();
-                swapImages(currentIndex, currentIndex - 1);
-                // Focus will be updated after render
-                setTimeout(() => {
-                    const newThumbnails = document.querySelectorAll('.thumbnail');
-                    newThumbnails[currentIndex - 1]?.focus();
-                }, 100);
-            }
-            break;
-            
-        case 'ArrowRight':
-            if (e.altKey && currentIndex < thumbnails.length - 1) {
-                e.preventDefault();
-                swapImages(currentIndex, currentIndex + 1);
-                // Focus will be updated after render
-                setTimeout(() => {
-                    const newThumbnails = document.querySelectorAll('.thumbnail');
-                    newThumbnails[currentIndex + 1]?.focus();
-                }, 100);
-            }
-            break;
     }
 }
 
@@ -568,6 +581,9 @@ function handleKeyboardNavigation(e) {
  * @param {number} index2 - Second image index
  */
 function swapImages(index1, index2) {
+    // Save original images for comparison
+    const originalImages = [...state.images];
+    
     const newImages = [...state.images];
     const temp = newImages[index1];
     newImages[index1] = newImages[index2];
@@ -589,7 +605,7 @@ function swapImages(index1, index2) {
     }
     
     render();
-    updateImagePositions(newImages);
+    updateImagePositions(newImages, originalImages);
 }
 
 // Expose functions to global scope for inline event handlers
