@@ -382,7 +382,7 @@ resource "aws_apigatewayv2_route" "delete_file" {
 # API Gateway Route for metadata update
 resource "aws_apigatewayv2_route" "update_metadata" {
   api_id    = aws_apigatewayv2_api.main.id
-  route_key = "POST /update-metadata"
+  route_key = "POST /metadata"
   target    = "integrations/${aws_apigatewayv2_integration.metadata_updater.id}"
   #  authorization_type = "JWT"
   #  authorizer_id     = aws_apigatewayv2_authorizer.cognito.id
